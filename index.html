@@ -1057,7 +1057,18 @@ function mirrorSnapshot(){
   let nameInput=''; try{ const el=document.getElementById('f-name'); if(el) nameInput=el.value||''; }catch(e){}
   let mediaSrc=null, mediaType=null;
   try{ const m=matchNameMedia(nameInput||State.name)||State.portrait; if(m&&m.src){ mediaSrc=m.src; mediaType=m.type||'video'; } }catch(e){}
-  let html=null; try{ const a=document.querySelector('.screen.active'); if(a) html=a.innerHTML; }catch(e){}
+  let html=null; try{
+    const a=document.querySelector('.screen.active');
+    if(a){
+      // שקף ערכים חיים (הקלדה/סליידר/בחירה) לתוך ה-HTML כדי שהמקרן יראה אותם מיד
+      a.querySelectorAll('input,textarea,select').forEach(el=>{ try{
+        if(el.tagName==='SELECT'){ Array.from(el.options).forEach(o=>{ if(o.selected)o.setAttribute('selected','selected'); else o.removeAttribute('selected'); }); }
+        else if(el.type==='checkbox'||el.type==='radio'){ if(el.checked)el.setAttribute('checked','checked'); else el.removeAttribute('checked'); }
+        else { el.setAttribute('value', el.value==null?'':el.value); }
+      }catch(e){} });
+      html=a.innerHTML;
+    }
+  }catch(e){}
   const s={};
   for(const k in State){ try{ JSON.stringify(State[k]); s[k]=State[k]; }catch(e){} }
   return { name:State.name, nameInput:nameInput, mediaSrc:mediaSrc, mediaType:mediaType, html:html, state:s };
@@ -1075,11 +1086,13 @@ function applyMirror(m){
     const el = document.getElementById(m.screen);
     if(!el) return;
     if(typeof m.html === 'string'){
-      // אל תאתחל וידאו זהה של אותו אדם (מונע ריצוד)
+      // אל תאתחל וידאו זהה של אותו אדם (מונע ריצוד), ואל תזריק אם התוכן זהה
       const hasVid = !!el.querySelector('video');
       const sameSrc = el.getAttribute('data-mirror-src') === (m.mediaSrc || '');
-      if(!(m.screen==='screen-identify' && hasVid && sameSrc)){
+      const keepVideo = m.screen==='screen-identify' && hasVid && sameSrc;
+      if(!keepVideo && el.__mh !== m.html){
         el.innerHTML = m.html;
+        el.__mh = m.html;
         el.setAttribute('data-mirror-src', m.mediaSrc || '');
         el.querySelectorAll('video').forEach(v=>{
           try{ v.style.clipPath=''; v.muted=true; v.setAttribute('playsinline',''); v.setAttribute('autoplay',''); const p=v.play(); if(p&&p.catch)p.catch(()=>{}); }catch(e){}
@@ -1359,6 +1372,20 @@ if(document.readyState==='loading') window.addEventListener('DOMContentLoaded', 
 window.addEventListener('load', rtInit);
 // טלפון: מכריז על מסך הפתיחה עם הטעינה, כדי שמקרן שנפתח יראה מיד את המצב הנוכחי
 window.addEventListener('load', ()=>{ if(!DISPLAY){ setTimeout(()=>{ try{ mirror('screen-intro'); }catch(e){} }, 900); } });
+// טלפון: שידור רציף — מעדכן את המקרן על כל שינוי חי (הקלדה/סליידר/בחירה/אנימציה), לא רק במעברי מסך
+let _liveMirrorKey='';
+if(!DISPLAY){
+  setInterval(()=>{
+    try{
+      const a=document.querySelector('.screen.active'); if(!a) return;
+      const snap=mirrorSnapshot();
+      const key=a.id+'|'+(snap.html||'')+'|'+(snap.mediaSrc||'');
+      if(key===_liveMirrorKey) return;      // שדר רק כשמשהו באמת השתנה
+      _liveMirrorKey=key;
+      rtPublish(Object.assign({ t:'mirror', screen:a.id, ts:Date.now() }, snap), { retain:true });
+    }catch(e){}
+  }, 450);
+}
 
 function holoSend(path, body){
   try{
