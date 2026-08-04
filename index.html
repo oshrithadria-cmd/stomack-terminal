@@ -1064,7 +1064,8 @@ function mirrorSnapshot(){
 }
 function mirror(screen){
   if(DISPLAY) return;                 // המקרן עצמו לא משדר בחזרה
-  try{ rtPublish(Object.assign({ t:'mirror', screen:screen, ts:Date.now() }, mirrorSnapshot())); }catch(e){}
+  // retain=true: מקרן שנפתח באמצע יקבל מיד את המסך הנוכחי
+  try{ rtPublish(Object.assign({ t:'mirror', screen:screen, ts:Date.now() }, mirrorSnapshot()), { retain:true }); }catch(e){}
 }
 
 /* --- צד המקרן: מקבל שידור ומציג את אותו מסך בדיוק --- */
@@ -1317,29 +1318,47 @@ const RT = {
   clientId: 'stomack-app-'+Math.random().toString(16).slice(2,10),
 };
 let _rtClient=null, _rtReady=false, _rtPending=null;
+function _dispStatus(txt, on){
+  if(!DISPLAY || !document.body) return;
+  let el=document.getElementById('mirror-live');
+  if(!el){
+    el=document.createElement('div'); el.id='mirror-live';
+    el.style.cssText='position:fixed;top:10px;right:12px;z-index:99999;font:12px/1 monospace;letter-spacing:2px;display:flex;align-items:center;gap:7px;pointer-events:none;color:#4f7a63;';
+    el.innerHTML='<span id="mirror-dot" style="width:10px;height:10px;border-radius:50%;background:#ff5c5c;box-shadow:0 0 10px #ff5c5c;display:inline-block"></span><span id="mirror-txt"></span>';
+    document.body.appendChild(el);
+  }
+  const dot=document.getElementById('mirror-dot'), t=document.getElementById('mirror-txt');
+  if(t) t.textContent=txt;
+  if(dot){ dot.style.background=on?'#2ee66b':'#ff5c5c'; dot.style.boxShadow='0 0 10px '+(on?'#2ee66b':'#ff5c5c'); }
+}
 function rtInit(){
   try{
     if(_rtClient || !window.mqtt) return;
+    if(DISPLAY) _dispStatus('CONNECTING…', false);
     _rtClient = window.mqtt.connect(RT.url, { clientId:RT.clientId, reconnectPeriod:3000, connectTimeout:8000, clean:true });
     _rtClient.on('connect', ()=>{ _rtReady=true;
-      if(DISPLAY){ try{ _rtClient.subscribe(RT.topic); }catch(e){} }
-      if(_rtPending){ try{_rtClient.publish(RT.topic,_rtPending,{qos:0});}catch(e){} _rtPending=null; }
+      if(DISPLAY){ try{ _rtClient.subscribe(RT.topic); }catch(e){} _dispStatus('LIVE', true); }
+      if(_rtPending){ try{_rtClient.publish(RT.topic,_rtPending.p,_rtPending.o||{qos:0});}catch(e){} _rtPending=null; }
     });
     if(DISPLAY){ _rtClient.on('message', (t,buf)=>{ let m; try{ m=JSON.parse(buf.toString('utf8')); }catch(e){ return; } if(m && m.t==='mirror') applyMirror(m); }); }
+    _rtClient.on('reconnect', ()=>{ if(DISPLAY) _dispStatus('RECONNECT…', false); });
     _rtClient.on('error', ()=>{});
-    _rtClient.on('close', ()=>{ _rtReady=false; });
+    _rtClient.on('close', ()=>{ _rtReady=false; if(DISPLAY) _dispStatus('OFFLINE', false); });
   }catch(e){}
 }
-function rtPublish(obj){
+function rtPublish(obj, opts){
   try{
     const payload=JSON.stringify(obj);
+    const o=Object.assign({qos:0}, opts||{});
     if(!_rtClient) rtInit();
-    if(_rtClient && _rtReady){ _rtClient.publish(RT.topic, payload, {qos:0}); }
-    else { _rtPending=payload; }   // יישלח מיד ברגע שהחיבור ייפתח
+    if(_rtClient && _rtReady){ _rtClient.publish(RT.topic, payload, o); }
+    else { _rtPending={p:payload, o:o}; }   // יישלח מיד ברגע שהחיבור ייפתח
   }catch(e){}
 }
 if(document.readyState==='loading') window.addEventListener('DOMContentLoaded', rtInit);
 window.addEventListener('load', rtInit);
+// טלפון: מכריז על מסך הפתיחה עם הטעינה, כדי שמקרן שנפתח יראה מיד את המצב הנוכחי
+window.addEventListener('load', ()=>{ if(!DISPLAY){ setTimeout(()=>{ try{ mirror('screen-intro'); }catch(e){} }, 900); } });
 
 function holoSend(path, body){
   try{
