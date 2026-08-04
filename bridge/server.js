@@ -81,6 +81,11 @@ const server = http.createServer(async (req, res)=>{
     return sendJson(res, 200, loadVideos());
   }
 
+  if (url.pathname === '/info'){
+    try { const info = await fan.getInfo(); return sendJson(res, 200, { ok:true, ...info }); }
+    catch (e){ return sendJson(res, 500, { ok:false, error: e.message }); }
+  }
+
   if (url.pathname === '/play' && req.method === 'POST'){
     const body = await readBody(req);
     const name = body.name || '';

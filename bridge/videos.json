@@ -1,9 +1,9 @@
 {
-  "_comment": "מיפוי שם-אדם -> מזהה/קובץ וידאו בהולוגרמה. video = האינדקס/שם שהמאוורר מכיר. default = ברירת מחדל למי שלא ברשימה.",
-  "default": { "video": 1, "label": "generic" },
+  "_comment": "מיפוי שם-אדם -> שם קובץ הווידאו במאוורר (כפי שהוא ב-/extsd). default.video=null => לא לשנות סרטון למי שלא ברשימה.",
+  "default": { "video": null, "label": "generic" },
   "people": [
-    { "names": ["שרון רהב"],    "video": 1, "label": "sharon" },
-    { "names": ["מיכאל ששון"],  "video": 2, "label": "michael" },
-    { "names": ["מיכל קסטיאל"], "video": 3, "label": "michal" }
+    { "names": ["שרון רהב"],    "video": "sharon.mp4",  "label": "sharon" },
+    { "names": ["מיכאל ששון"],  "video": "michael.mp4", "label": "michael" },
+    { "names": ["מיכל קסטיאל"], "video": "michal.mp4",  "label": "michal" }
   ]
 }

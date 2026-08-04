@@ -1158,6 +1158,8 @@ function matchNameMedia(input){
       if(currentSrc!==m.src){
         currentSrc=m.src; box.innerHTML='';
         box.classList.remove('materializing','materialized');
+        // הולוגרמה: ברגע שזוהה שם מלא — החלף מיד לסרטון של אותו אדם (בזמן אמת, תוך כדי הקלדה)
+        try{ holoCue('identify', { name: (m.names && m.names[0]) || input.value }); }catch(e){}
         if(m.type==='video'){
           box.classList.add('holo');
           const v=document.createElement('video');
@@ -1241,15 +1243,17 @@ document.getElementById('btn-identify-next').addEventListener('click', async ()=
    ========================================================= */
 const HOLO_BRIDGE='http://127.0.0.1:8777';
 const HOLO_CUES = {
-  start:    { power:'on'  },   // תחילת החוויה
-  identify: { power:'on'  },   // רגע הזיהוי (בהמשך: { name:'' } לוידאו אישי)
-  scan:     { power:'on'  },   // סריקת פנים
-  voice:    { power:'on'  },   // מבחן הקול
-  cognitive:{ power:'on'  },   // המשחק
-  wheel:    { power:'on'  },   // גלגל המזל
-  tarot:    { power:'on'  },   // חשיפת הקלפים
-  summary:  { power:'on'  },   // עמוד הסיכום
-  reset:    { power:'off' },   // חזרה למסך הפתיחה
+  // עד שמזהים שם מלא — המאוורר כבוי/נייטרלי (בלי להריץ לולאה של כולם).
+  // ברגע שמקלידים שם שמזוהה — קופץ ישר לסרטון של אותו אדם ונשאר נעול עליו.
+  start:    { power:'off' },   // תחילת החוויה — מצב נייטרלי (כבוי)
+  identify: { power:'on'  },   // רגע הזיהוי — שם האדם מתווסף בזמן ריצה → נגן אותו
+  scan:     { },               // שלבים הבאים — לא נוגעים במאוורר; האדם נשאר נעול
+  voice:    { },
+  cognitive:{ },
+  wheel:    { },
+  tarot:    { },
+  summary:  { },
+  reset:    { power:'off' },   // חזרה למסך הפתיחה — כיבוי
 };
 /* ---- ערוץ זמן-אמת (MQTT) אל "מחשב המרכז" באירוע ----
    כך הפקודות מהטלפון (שנפתח דרך הברקוד) מגיעות למאוורר בזמן אמת, דרך האינטרנט.
