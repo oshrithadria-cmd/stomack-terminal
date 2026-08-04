@@ -1108,6 +1108,9 @@ if(DISPLAY){
   try{ State.muted = true; }catch(e){}
   document.documentElement.classList.add('display-mode');
   try{ const st=document.createElement('style'); st.textContent='html.display-mode, html.display-mode *{cursor:none !important;}'; document.head.appendChild(st); }catch(e){}
+  // מסך מלא (מסתיר את שורת הכתובת/הלינק) בכל נגיעה/לחיצה על המקרן
+  const _goFS=()=>{ try{ const el=document.documentElement; if(!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(()=>{}); }catch(e){} };
+  ['click','touchend','keydown'].forEach(ev=> document.addEventListener(ev, _goFS, { passive:true }));
 }
 
 /* ----- מחווני שלב ----- */
