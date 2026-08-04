@@ -1043,7 +1043,25 @@ const State = {
   addEventListener('resize',resize); resize(); tick();
 })();
 
-function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); mirror(id); }
+
+/* =========================================================
+   שידור בלתי-נראה למקרן — משדר בזמן אמת את המסך הפעיל ותוכנו,
+   כך שדף המקרן (display.html) מציג בדיוק מה שקורה על הטלפון.
+   אינו משנה דבר בחוויית המבקר. נכשל בשקט אם אין רשת/ערוץ.
+   ========================================================= */
+function mirrorSnapshot(){
+  let nameInput=''; try{ const el=document.getElementById('f-name'); if(el) nameInput=el.value||''; }catch(e){}
+  let mediaSrc=null, mediaType=null;
+  try{ const m=matchNameMedia(nameInput||State.name)||State.portrait; if(m&&m.src){ mediaSrc=m.src; mediaType=m.type||'video'; } }catch(e){}
+  let html=null; try{ const a=document.querySelector('.screen.active'); if(a) html=a.innerHTML; }catch(e){}
+  const s={};
+  for(const k in State){ try{ JSON.stringify(State[k]); s[k]=State[k]; }catch(e){} }
+  return { name:State.name, nameInput:nameInput, mediaSrc:mediaSrc, mediaType:mediaType, html:html, state:s };
+}
+function mirror(screen){
+  try{ rtPublish(Object.assign({ t:'mirror', screen:screen, ts:Date.now() }, mirrorSnapshot())); }catch(e){}
+}
 
 /* ----- מחווני שלב ----- */
 function renderSteps(){
@@ -1160,6 +1178,7 @@ function matchNameMedia(input){
         box.classList.remove('materializing','materialized');
         // הולוגרמה: ברגע שזוהה שם מלא — החלף מיד לסרטון של אותו אדם (בזמן אמת, תוך כדי הקלדה)
         try{ holoCue('identify', { name: (m.names && m.names[0]) || input.value }); }catch(e){}
+        try{ mirror('screen-identify'); }catch(e){}
         if(m.type==='video'){
           box.classList.add('holo');
           const v=document.createElement('video');
@@ -1799,6 +1818,7 @@ async function startBody(){
   async function finishScan(stillness, turbulence, color, real){
     running=false; cancelAnimationFrame(raf); frame.classList.remove('scanning');
     State.steadiness=stillness; State.auraTurbulence=turbulence; State.auraColor=color;
+    try{ mirror('screen-body'); }catch(e){}
     meter.style.width='100%'; meter.style.background=color.hex;
     const expr=State.expression?(' · '+State.expression.toUpperCase()):'';
     readout.innerHTML='PROFILE :: <span style="color:'+color.hex+'">'+color.n+'</span>'+expr+' &nbsp;|&nbsp; STILLNESS '+stillness+'%';
@@ -2464,6 +2484,7 @@ function spinWheel(){
 
 function onWheelLanded(seg){
   State.wheelResult = seg.n+' '+seg.t;
+  try{ mirror('screen-wheel'); }catch(e){}
   const line = WHEEL_LINES[seg.t] || 'The wheel has spoken.';
   document.getElementById('wheel-readout').innerHTML='&gt; YOU LANDED ON :: <b>'+seg.n+' '+seg.t+'</b><br>'+line;
   document.getElementById('btn-wheel-spin').style.display='none';
@@ -2619,6 +2640,7 @@ function setCard(idx,d){
 async function revealRitual(){
   show('screen-ritual'); setOrb(null); renderSteps();
   const cards=buildCards(); State.cards=cards;
+  try{ mirror('screen-ritual'); }catch(e){}
   [0,1,2].forEach(i=>{ setCard(i,cards[i]); document.getElementById('card-'+i).classList.remove('flipped'); });
   // אפס תצוגת טקסט + הסתר את בלוק הפסק־דין כך שהקלפים יופיעו לבד, ממורכזים ובמלואם
   document.getElementById('verdict-block').style.display='none';
