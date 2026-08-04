@@ -1112,33 +1112,36 @@ if(DISPLAY){
   const _goFS=()=>{ try{ const el=document.documentElement; if(!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(()=>{}); }catch(e){} };
   ['click','touchend'].forEach(ev=> document.addEventListener(ev, _goFS, { passive:true }));
 
-  // כיוונון תמונה למקרן: חצים=הזזה, +/-=זום, 0=איפוס. נשמר אוטומטית.
+  // כיוונון תמונה למקרן: מקטין/מגדיל את התוכן שייכנס בתוך מסגרת המקרן (Overscan). נשמר.
   let _adj={ s:1, x:0, y:0 };
   try{ const sv=JSON.parse(localStorage.getItem('mirrorAdj')||'null'); if(sv && typeof sv.s==='number') _adj=sv; }catch(e){}
   function _applyAdj(){ try{
     document.body.style.transformOrigin='center center';
     document.body.style.transform='translate('+_adj.x+'px,'+_adj.y+'px) scale('+_adj.s+')';
     try{ localStorage.setItem('mirrorAdj', JSON.stringify(_adj)); }catch(e){}
-    const h=document.getElementById('adj-hint'); if(h) h.textContent='◄►▲▼ move · +/- zoom · 0 reset   ['+_adj.x+','+_adj.y+' ×'+_adj.s.toFixed(2)+']';
+    const h=document.getElementById('adj-hint'); if(h) h.textContent='▼ smaller (fit inside) · ▲ bigger · ◄► shift · 0 reset   [×'+_adj.s.toFixed(2)+']';
   }catch(e){} }
+  function _showAdjUI(on){ ['adj-hint','adj-frame'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=on?'':'none'; }); }
   window.addEventListener('load', ()=>{
-    let hint=document.getElementById('adj-hint');
-    if(!hint && document.body){ hint=document.createElement('div'); hint.id='adj-hint';
-      hint.style.cssText='position:fixed;bottom:8px;left:0;right:0;text-align:center;z-index:99999;font:11px monospace;letter-spacing:2px;color:#4f7a63;pointer-events:none;';
-      document.body.appendChild(hint); }
+    if(document.body){
+      if(!document.getElementById('adj-frame')){ const fr=document.createElement('div'); fr.id='adj-frame';
+        fr.style.cssText='position:fixed;inset:0;border:2px solid rgba(46,230,107,.6);box-sizing:border-box;pointer-events:none;z-index:99998;'; document.body.appendChild(fr); }
+      if(!document.getElementById('adj-hint')){ const hint=document.createElement('div'); hint.id='adj-hint';
+        hint.style.cssText='position:fixed;bottom:8px;left:0;right:0;text-align:center;z-index:99999;font:12px monospace;letter-spacing:2px;color:#2ee66b;pointer-events:none;'; document.body.appendChild(hint); }
+    }
     _applyAdj();
-    setTimeout(()=>{ const el=document.getElementById('adj-hint'); if(el) el.style.display='none'; }, 12000);
+    setTimeout(()=>_showAdjUI(false), 15000);   // המסגרת/הרמז נעלמים אחרי כיוונון ראשוני
   });
   setTimeout(_applyAdj, 400);
   document.addEventListener('keydown', (e)=>{
     _goFS();
-    const el=document.getElementById('adj-hint'); if(el){ el.style.display=''; clearTimeout(window.__adjT); window.__adjT=setTimeout(()=>{ el.style.display='none'; }, 12000); }
+    _showAdjUI(true); clearTimeout(window.__adjT); window.__adjT=setTimeout(()=>_showAdjUI(false), 15000);
     let handled=true;
     switch(e.key){
+      case 'ArrowDown':  _adj.s=Math.max(0.5, _adj.s-0.02); break;  // הקטן — להכניס פנימה
+      case 'ArrowUp':    _adj.s=Math.min(2,   _adj.s+0.02); break;  // הגדל
       case 'ArrowLeft':  _adj.x-=10; break;
       case 'ArrowRight': _adj.x+=10; break;
-      case 'ArrowUp':    _adj.y-=10; break;
-      case 'ArrowDown':  _adj.y+=10; break;
       case '+': case '=': _adj.s=Math.min(2,   _adj.s+0.02); break;
       case '-': case '_': _adj.s=Math.max(0.5, _adj.s-0.02); break;
       case '0': _adj={s:1,x:0,y:0}; break;
