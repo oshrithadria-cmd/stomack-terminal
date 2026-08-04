@@ -1,0 +1,3213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+<meta http-equiv="Pragma" content="no-cache" />
+<meta http-equiv="Expires" content="0" />
+<title>STO(MA)CK TERMINAL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Doto:wght@400;700;900&family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-0: #03070a;
+    --bg-1: #04100c;
+    --green: #2ee66b;
+    --green-dim: #1b8a45;
+    --green-glow: rgba(46,230,107,0.35);
+    --amber: #ffb347;
+    --buy: #2ee66b;
+    --hold: #ffb347;
+    --sell: #ff5c5c;
+    --ink: #b8f5cf;
+    --muted: #4f7a63;
+    --font-dot: 'Doto', 'DotGothic16', monospace;
+    --font-term: 'Share Tech Mono', 'VT323', 'Courier New', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: var(--bg-0);
+    color: var(--green);
+    font-family: var(--font-term);
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  #cosmos {
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(1200px 800px at 50% 120%, rgba(46,230,107,0.10) 0%, transparent 60%),
+      linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);
+  }
+  #chart { position: fixed; inset: 0; z-index: 1; opacity: 0.9; }
+
+  #scanlines { position: fixed; inset: 0; z-index: 50; pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0.22) 0 1px, transparent 1px 3px); }
+  #vignette { position: fixed; inset: 0; z-index: 49; pointer-events: none;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
+    animation: flicker 5s infinite; }
+  @keyframes flicker { 0%,100%{opacity:1;} 47%{opacity:.97;} 49%{opacity:.92;} 51%{opacity:.99;} }
+
+  .ticker { position: fixed; inset-inline: 0; height: 30px; overflow: hidden; white-space: nowrap; z-index: 40;
+    background: rgba(2,8,5,0.85); border-block: 1px solid rgba(46,230,107,0.25);
+    font-size: 15px; letter-spacing: 1px; line-height: 30px; }
+  .ticker.top { top: 0; } .ticker.bottom { bottom: 0; }
+  .ticker .track { display: inline-block; padding-inline-start: 100%; animation: scroll 38s linear infinite; }
+  .ticker.bottom .track { animation-duration: 52s; animation-direction: reverse; }
+  @keyframes scroll { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+  .tk { margin-inline: 22px; }
+  .tk .up { color: var(--buy); } .tk .down { color: var(--sell); } .tk .sym { color: var(--amber); }
+
+  .stage { position: relative; z-index: 5; height: 100%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 5vh 5vw; text-align: center; }
+
+  .screen { display: none; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2.4vh; width: 100%; max-width: 1150px; animation: boot .6s steps(8) both; }
+  .screen.active { display: flex; max-height: 100%; overflow-y: auto; overflow-x: hidden;
+    scrollbar-width: none; -ms-overflow-style: none; }
+  .screen.active::-webkit-scrollbar { width: 0; height: 0; display: none; }
+  @keyframes boot { from { opacity: 0; } to { opacity: 1; } }
+
+  /* מסגרת קופסה בסגנון DOS — קו כפול */
+  .panel { position: relative; border: 3px double var(--green); padding: 30px 42px;
+    background: rgba(4,16,11,0.5); box-shadow: 0 0 24px rgba(46,230,107,0.12), inset 0 0 40px rgba(46,230,107,0.04);
+    display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .panel > .c-tr, .panel > .c-br { position: absolute; inset: 0; pointer-events: none; }
+  .panel::before, .panel::after, .panel > .c-tr::before, .panel > .c-br::before {
+    position: absolute; color: var(--green); font-family: var(--font-term); font-size: 18px; line-height: 1;
+    background: var(--bg-0); padding: 0 2px; }
+  .panel::before { content: "╔"; top: -11px; inset-inline-start: -3px; }
+  .panel::after  { content: "╝"; bottom: -11px; inset-inline-end: -3px; }
+  .c-tr::before { content:"╗"; top: -11px; inset-inline-end: -3px; }
+  .c-br::before { content:"╚"; bottom: -11px; inset-inline-start: -3px; }
+
+  /* ריווח גדול יותר בין השורות — רק במסך הפתיחה */
+  #screen-intro .panel { gap: 30px; padding: 44px 52px; }
+  #screen-intro h1 { line-height: 1.25; }
+  #screen-intro .subtitle { line-height: 2.2; }
+
+  .tag { color: var(--muted); font-size: 13px; letter-spacing: 4px; text-transform: uppercase; }
+  .tag .live { color: var(--buy); }
+  /* סמן בלוק מהבהב בסגנון DOS */
+  .blink { display: inline-block; width: .62em; height: 1.05em; vertical-align: -0.16em;
+    background: currentColor; color: var(--green); animation: blink 1.1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  h1 { font-family: var(--font-dot); font-weight: 900; font-size: clamp(38px, 8.5vw, 104px);
+    letter-spacing: 6px; color: var(--green); text-shadow: 0 0 18px var(--green-glow); line-height: 1; }
+  .title-he { font-size: clamp(18px, 3vw, 30px); letter-spacing: 8px; color: var(--amber); opacity: .85; }
+
+  .subtitle { color: var(--ink); font-size: clamp(14px, 2vw, 20px); letter-spacing: 2px; line-height: 1.9; }
+  .subtitle .he { display: block; color: var(--muted); }
+  .subtitle::before { content: "> "; color: var(--green); }
+
+  .ask { display: flex; flex-direction: column; gap: 10px; min-height: 2.2em; }
+  .ask .en { font-family: var(--font-dot); font-weight: 700; font-size: clamp(22px, 4vw, 46px);
+    line-height: 1.2; color: var(--green); text-shadow: 0 0 14px var(--green-glow); max-width: 24ch; }
+  .ask .en::before { content: "> "; color: var(--amber); }
+  .ask .he { font-size: clamp(15px, 2.2vw, 24px); color: var(--muted); letter-spacing: 1px; }
+
+  .step-dots { display: flex; gap: 10px; }
+  .step-dots i { width: 10px; height: 10px; border: 1px solid var(--green-dim); display: inline-block; }
+  .step-dots i.on { background: var(--green); box-shadow: 0 0 8px var(--green-glow); border-color: var(--green); }
+  .step-dots i.done { background: var(--green-dim); }
+
+  .transmit { height: 22px; color: var(--amber); font-size: 14px; letter-spacing: 3px; opacity: .35; }
+  .transmit.speaking { opacity: 1; animation: blink .7s steps(1) infinite; }
+
+  .listening { display: flex; align-items: flex-end; gap: 5px; height: 40px; opacity: 0; transition: opacity .3s; }
+  .listening.on { opacity: 1; }
+  .listening span { width: 5px; background: var(--green); box-shadow: 0 0 8px var(--green-glow); animation: bounce 1s ease-in-out infinite; }
+  .listening span:nth-child(2){animation-delay:.15s;} .listening span:nth-child(3){animation-delay:.3s;}
+  .listening span:nth-child(4){animation-delay:.45s;} .listening span:nth-child(5){animation-delay:.6s;}
+  @keyframes bounce { 0%,100%{height:10px;} 50%{height:36px;} }
+
+  .heard { color: var(--amber); font-size: clamp(18px, 3vw, 30px); min-height: 1.3em; letter-spacing: 1px; }
+  .heard:not(:empty)::before { content: "INPUT >> "; color: var(--muted); font-size: .7em; }
+
+  /* טופס זיהוי */
+  .form { display: flex; flex-direction: column; gap: 18px; width: min(560px, 86vw); }
+  .field { display: flex; flex-direction: column; gap: 6px; text-align: start; }
+  .field label { color: var(--muted); font-size: 13px; letter-spacing: 2px; }
+  .field label .he { color: var(--green-dim); }
+  .field input { background: rgba(2,8,5,0.6); border: 1px solid var(--green-dim); color: var(--green);
+    font-family: var(--font-term); font-size: 20px; padding: 10px 14px; caret-color: var(--green); outline: none; }
+  .field input:focus { border-color: var(--green); box-shadow: 0 0 14px var(--green-glow); }
+  .field input::placeholder { color: var(--muted); opacity: .6; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+
+  /* תצוגת מדיה לפי שם */
+  .name-row { display: flex; align-items: center; gap: 14px; position: relative; }
+  .name-row input { flex: 1 1 auto; min-width: 0; }
+  .name-media { position: absolute; top: 50%; inset-inline-start: calc(100% + 22px);
+    width: clamp(150px, 26vw, 230px); aspect-ratio: 3 / 4; overflow: visible; opacity: 0; pointer-events: none;
+    transform: translateY(-50%) scale(.82); background: #000; border: 0 solid var(--green-dim);
+    transition: opacity .4s, transform .4s; z-index: 20; }
+  .name-media.show { opacity: 1; transform: translateY(-50%) scale(1); border-width: 1px;
+    box-shadow: 0 0 24px var(--green-glow), inset 0 0 26px rgba(46,230,107,0.06); }
+  .name-media video, .name-media img { width: 100%; height: 100%; object-fit: cover; display: block; position: relative; z-index: 1; }
+
+  /* אפקט הקרנת הולוגרמה */
+  .name-media.holo video { filter: brightness(1.05) contrast(1.06) saturate(1.15); }
+  .name-media.holo::after { content:''; position:absolute; inset:0; z-index:2; pointer-events:none;
+    background: var(--green); mix-blend-mode: color; opacity:.20; }
+  .name-media .holo-grid { position:absolute; inset:0; z-index:3; pointer-events:none; mix-blend-mode:screen;
+    background: repeating-linear-gradient(0deg, rgba(46,230,107,0.16) 0 1px, transparent 1px 4px); opacity:.5; }
+  .name-media .holo-scan { position:absolute; inset-inline:0; top:100%; height:3px; z-index:4; pointer-events:none; opacity:0;
+    background: linear-gradient(90deg, transparent, var(--green), transparent);
+    box-shadow: 0 0 16px var(--green-glow), 0 0 34px var(--green-glow); transition: opacity .4s; }
+  .name-media .holo-pct { position:absolute; top: calc(100% + 8px); inset-inline:0; z-index:5; pointer-events:none; text-align:center;
+    font-family: var(--font-dot); font-weight:700; font-size: clamp(11px,1.6vw,15px); letter-spacing:2px;
+    color: var(--green); text-shadow: 0 0 10px var(--green-glow); opacity:0; transition: opacity .4s; }
+  .name-media.materializing { animation: holoFlicker .22s steps(2) infinite; }
+  .name-media.materializing .holo-scan, .name-media.materializing .holo-pct { opacity:1; }
+  @keyframes holoFlicker { 0%,100%{ filter:none; } 50%{ filter: brightness(1.25); } }
+
+  @media (max-width: 720px){
+    .name-media { position: static; transform: scale(.82); inset-inline-start: auto;
+      width: clamp(120px, 40vw, 180px); margin-top: 12px; }
+    .name-media.show { transform: scale(1); }
+  }
+
+  .btn { background: transparent; border: 1px solid var(--green); color: var(--green); padding: 13px 26px;
+    font-family: var(--font-term); font-size: clamp(15px, 1.9vw, 21px); cursor: pointer; letter-spacing: 2px;
+    text-transform: uppercase; transition: background .15s, color .15s, box-shadow .2s; }
+  .btn:hover { background: var(--green); color: var(--bg-0); box-shadow: 0 0 24px var(--green-glow); }
+  .btn.sel { background: var(--green); color: var(--bg-0); }
+  .btn .he { display: block; font-size: .65em; opacity: .8; letter-spacing: 1px; text-transform: none; }
+  .btn-primary { font-size: clamp(17px, 2.3vw, 23px); padding: 15px 42px; }
+  .btn-primary::before { content: "[ "; } .btn-primary::after { content: " ]"; }
+  .chip { padding: 9px 18px; font-size: 16px; }
+
+  .options { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; max-width: 880px; }
+  .option { min-width: 150px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .option .emoji { font-size: 28px; filter: grayscale(.2); }
+  .option .en { font-size: 19px; } .option .he { font-size: 13px; opacity: .75; }
+
+  /* סרגל ביטחון */
+  .slider-wrap { width: min(560px, 84vw); display: flex; flex-direction: column; gap: 14px; align-items: center; }
+  .slider-val { font-family: var(--font-dot); font-weight: 900; font-size: clamp(48px, 9vw, 96px); color: var(--green); text-shadow: 0 0 18px var(--green-glow); }
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; background: var(--green-dim); outline: none; }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 30px; background: var(--green); cursor: pointer; box-shadow: 0 0 14px var(--green-glow); }
+  input[type=range]::-moz-range-thumb { width: 22px; height: 30px; background: var(--green); border: 0; cursor: pointer; }
+  .scale { display: flex; justify-content: space-between; width: 100%; color: var(--muted); font-size: 13px; letter-spacing: 1px; }
+
+  /* סריקה ביומטרית */
+  #screen-body { gap: 1.4vh; padding-block: 8px 68px; }
+  #screen-body .ask { min-height: 0; }
+  #screen-body .ask .en { font-size: clamp(18px, 2.6vw, 30px); }
+  #screen-body .aura-readout { margin-top: 0.6vh; line-height: 1.6; }
+  #btn-scan-start { margin-top: 1.2vh; }
+  .scan-rig { display: flex; align-items: stretch; justify-content: center; gap: clamp(5px, 0.9vw, 12px); width: 100%; max-width: 1150px; }
+  .data-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; gap: 3px; justify-content: center; }
+  .data-col.right { text-align: end; }
+  .metric { border: 1px solid rgba(46,230,107,0.18); background: rgba(4,16,11,0.45); padding: 3px 6px;
+    flex-direction: column; gap: 1px; display: none; }
+  .metric.on { display: flex; animation: metricIn .35s both; }
+  @keyframes metricIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .data-col.right .metric { align-items: flex-end; }
+  .metric .k { color: var(--muted); font-size: clamp(8px,0.85vw,10px); letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
+  .metric .v { color: var(--green); font-size: clamp(11px, 1.35vw, 15px); letter-spacing: 1px; text-shadow: 0 0 8px var(--green-glow); white-space: nowrap; }
+  .metric .v.amber { color: var(--amber); text-shadow: none; }
+  .metric .v.sell { color: var(--sell); text-shadow: none; }
+  .metric .bar { height: 3px; width: 100%; background: var(--green-dim); overflow: hidden; }
+  .metric .bar i { display: block; height: 100%; width: 0; background: var(--green); box-shadow: 0 0 8px var(--green-glow); transition: width .15s linear; }
+
+  .scan-frame { position: relative; flex: 0 0 auto; width: clamp(160px, 22vw, 250px); aspect-ratio: 3/4; max-height: 34vh; overflow: hidden;
+    border: 3px double var(--green-dim); background: #000; box-shadow: inset 0 0 50px rgba(0,0,0,0.8), 0 0 24px rgba(46,230,107,0.1); }
+  .scan-frame video, .scan-frame canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .scan-frame video { object-fit: cover; }
+  #aura-video { display: none; transform: scaleX(-1); filter: saturate(.7) contrast(1.05) brightness(.92); }
+  #track-canvas { display: none; z-index: 3; pointer-events: none; }
+  .scan-hud { position: absolute; top: 8px; inset-inline: 8px; z-index: 4; display: flex; justify-content: space-between;
+    color: var(--green); font-size: 11px; letter-spacing: 2px; text-shadow: 0 0 6px var(--green-glow); pointer-events: none; }
+  .scan-hud .rec { color: var(--sell); }
+  .scan-hud .rec::before { content: "● "; animation: blink 1s steps(1) infinite; }
+  @media (max-width: 760px){
+    .scan-rig { flex-direction: column; align-items: center; }
+    .data-col { flex-direction: row; flex-wrap: wrap; justify-content: center; }
+    .data-col, .data-col.right { text-align: center; }
+    .data-col.right .metric, .metric { align-items: flex-start; }
+    .scan-frame { width: min(80vw, 360px); }
+  }
+  .scan-grid { position: absolute; inset: 0; pointer-events: none;
+    background:
+      repeating-linear-gradient(0deg, rgba(46,230,107,0.10) 0 1px, transparent 1px 26px),
+      repeating-linear-gradient(90deg, rgba(46,230,107,0.10) 0 1px, transparent 1px 26px);
+    mix-blend-mode: screen; }
+  .scan-line { position: absolute; inset-inline: 0; top: 0; height: 3px; opacity: 0;
+    background: linear-gradient(90deg, transparent, var(--green), transparent);
+    box-shadow: 0 0 18px var(--green-glow), 0 0 36px var(--green-glow); }
+  .scan-frame.scanning .scan-line { opacity: 1; animation: scanmove 2.4s ease-in-out infinite; }
+  .scan-frame.scanning { box-shadow: inset 0 0 60px rgba(46,230,107,0.18), 0 0 40px var(--green-glow); }
+  @keyframes scanmove { 0%{ top: 0; } 50%{ top: calc(100% - 3px); } 100%{ top: 0; } }
+  .scan-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    color: var(--muted); font-size: 16px; letter-spacing: 3px; text-align: center; }
+  .scan-placeholder .he { font-size: 12px; letter-spacing: 1px; opacity: .8; }
+  .scan-frame.scanning .scan-placeholder { color: var(--amber); }
+  .aura-readout { color: var(--amber); font-size: clamp(14px, 2vw, 18px); letter-spacing: 2px; min-height: 1.4em; text-align: center; }
+  .aura-meter { width: min(420px, 84vw); height: 6px; background: var(--green-dim); overflow: hidden; }
+  .aura-meter-fill { height: 100%; width: 0; background: var(--green); box-shadow: 0 0 12px var(--green-glow); transition: width .12s linear, background .4s; }
+
+  /* קלפים */
+  .cards { display: flex; gap: clamp(14px, 3vw, 38px); justify-content: center; flex-wrap: wrap; align-items: flex-start; }
+  /* כל קלף = מסגרת מתהפכת + כיתוב מתחת */
+  .card-slot { display: flex; flex-direction: column; align-items: center; gap: 12px;
+    width: clamp(180px, min(26vw, 33vh), 330px); perspective: 1400px; }
+  /* הודעת "אזהרה" קופצת מעל הטארוט */
+  .verdict-overlay { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.72); padding: 4vh 4vw; }
+  .verdict-panel { position: relative; border: 3px double var(--green); background: rgba(3,10,7,0.97);
+    box-shadow: 0 0 44px var(--green-glow), inset 0 0 60px rgba(46,230,107,0.05);
+    width: min(880px, 92vw); height: min(720px, 90vh); max-height: 90vh; overflow: hidden;
+    display: flex; flex-direction: column; animation: warnPop .3s ease both; }
+  @keyframes warnPop { 0%{ opacity: 0; } 100%{ opacity: 1; } }
+  .v-titlebar { position: sticky; top: 0; background: var(--green); color: var(--bg-0); font-weight: 700;
+    letter-spacing: 4px; text-align: center; padding: 6px 12px; font-size: clamp(13px,1.8vw,17px); animation: warnBlink 1.1s steps(1) infinite; }
+  @keyframes warnBlink { 0%,100%{ background: var(--green); } 50%{ background: var(--amber); } }
+  .v-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: clamp(10px,2vh,20px); padding: clamp(20px,3.5vw,44px); overflow: auto; }
+  .card { width: 100%; aspect-ratio: 2 / 3; position: relative; transform-style: preserve-3d; transition: transform 1.1s cubic-bezier(.2,.8,.2,1); }
+  .card.flipped { transform: rotateY(180deg); }
+  .card .face { position: absolute; inset: 0; backface-visibility: hidden; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 14px; border: 3px double var(--green-dim);
+    background: rgba(4,16,11,0.6); box-shadow: inset 0 0 30px rgba(46,230,107,0.05); }
+  .card .back { background:
+      repeating-linear-gradient(0deg, rgba(46,230,107,0.10) 0 2px, transparent 2px 5px),
+      repeating-linear-gradient(90deg, rgba(46,230,107,0.10) 0 2px, transparent 2px 5px), rgba(4,16,11,0.9);
+    color: var(--green-dim); }
+  .card .back::after { content: "[ ? ]"; font-family: var(--font-dot); font-size: 34px; color: var(--green); text-shadow: 0 0 14px var(--green-glow); }
+  .card .front { transform: rotateY(180deg); padding: 0; }
+  .card .symbol { font-size: clamp(34px,5vw,56px); margin: 6px 0; filter: grayscale(.3); }
+  /* קלף אמת = תמונה שלמה עם מסגרת משלה → ממלאת את הכרטיס בלי פסים שחורים */
+  .card .front:has(.card-img) { padding: 0; background: transparent; border-color: transparent; box-shadow: none; overflow: hidden; }
+  .card .symbol:has(.card-img) { filter: none; margin: 0; width: 100%; height: 100%; }
+  .card .card-img { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+  /* חשיפת הקלף חלקה ואיטית מלמטה למעלה — מופעל כשהקלף מתהפך */
+  .card.flipped .card-img { animation: cardRevealUp 2.6s ease-in-out .5s both; }
+  @keyframes cardRevealUp {
+    0%   { clip-path: inset(100% 0 0 0); }
+    100% { clip-path: inset(0 0 0 0); }
+  }
+  /* קו סריקה עדין שרץ עם קצה החשיפה — מלמטה למעלה */
+  .card .front:has(.card-img)::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; z-index: 4;
+    pointer-events: none; opacity: 0; background: linear-gradient(90deg, transparent, var(--green), transparent);
+    box-shadow: 0 0 18px var(--green-glow), 0 0 34px var(--green-glow); mix-blend-mode: screen; }
+  .card.flipped .front:has(.card-img)::after { animation: cardScanEdge 2.6s ease-in-out .5s both; }
+  @keyframes cardScanEdge {
+    0% { opacity: 0; bottom: 0; } 8% { opacity: 1; }
+    92% { opacity: 1; } 100% { opacity: 0; bottom: 100%; }
+  }
+
+  /* כיתוב מתחת לריבוע — מופיע רק אחרי שהקלף מתהפך */
+  .caption { opacity: 0; transition: opacity .5s ease .25s; display: flex; flex-direction: column; gap: 5px;
+    text-align: center; width: 100%; }
+  .card.flipped ~ .caption { opacity: 1; }
+  .caption .label { color: var(--muted); font-size: clamp(10px,1.2vw,13px); letter-spacing: 2px; text-transform: uppercase; }
+  .caption .name { font-family: var(--font-dot); font-weight: 700; font-size: clamp(15px,1.9vw,21px);
+    color: var(--green); text-shadow: 0 0 10px var(--green-glow); line-height: 1.2; }
+  .caption .meaning { font-size: clamp(11px,1.3vw,14px); color: var(--ink); line-height: 1.4; opacity: .85; }
+  .card .name { font-family: var(--font-dot); font-weight: 700; font-size: clamp(15px,1.9vw,20px); color: var(--green); text-shadow: 0 0 10px var(--green-glow); }
+  .card .name-he { font-size: clamp(12px,1.5vw,15px); color: var(--amber); opacity: .8; }
+  .card .meaning { margin-top: 8px; font-size: clamp(10px,1.2vw,13px); color: var(--ink); line-height: 1.4; opacity: .85; }
+  .card .meaning-he { margin-top: 3px; font-size: clamp(10px,1.2vw,13px); color: var(--muted); line-height: 1.4; }
+
+  .verdict { font-family: var(--font-dot); font-size: clamp(46px,10vw,128px); font-weight: 900; letter-spacing: 8px; animation: pulse 2.4s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{ text-shadow: 0 0 24px currentColor; } 50%{ text-shadow: 0 0 60px currentColor; } }
+  .verdict.BUY{color:var(--buy);} .verdict.HOLD{color:var(--hold);} .verdict.SELL{color:var(--sell);}
+  .verdict-he { font-family: var(--font-dot); font-size: clamp(20px,3.6vw,36px); letter-spacing: 4px; opacity: .85; }
+
+  .reveal { max-width: 34ch; min-height: calc(1.4em * 3); font-size: clamp(18px,2.7vw,30px); line-height: 1.4; color: var(--green); text-shadow: 0 0 10px var(--green-glow); text-align: center; }
+  .reveal .he { display: block; margin-top: 12px; font-size: .68em; color: var(--ink); text-shadow: none; }
+  .reveal .em { color: var(--amber); }
+  .closer { max-width: 34ch; min-height: calc(1.4em * 2); font-size: clamp(15px,2.1vw,22px); line-height: 1.4; color: var(--muted); margin-top: 6px; text-align: center; }
+  .closer .he { display: block; margin-top: 6px; }
+  /* סמן מהבהב בזמן הקלדה */
+  .reveal.typing::after, .closer.typing::after { content: '▋'; margin-left: 2px; color: var(--green);
+    text-shadow: 0 0 10px var(--green-glow); animation: caretBlink .8s steps(1) infinite; }
+  @keyframes caretBlink { 0%,50%{ opacity: 1; } 51%,100%{ opacity: 0; } }
+
+  .verdict-choice { display: flex; flex-direction: column; align-items: center; gap: clamp(12px,2vh,20px); margin-top: 6px; }
+  .choice-q { color: var(--amber); letter-spacing: 2px; font-size: clamp(14px,2vw,20px); text-shadow: 0 0 8px var(--amber); }
+  .choice-btns { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+  .btn.danger { border-color: var(--sell); color: var(--sell); }
+  .btn.danger:hover { background: var(--sell); color: var(--bg-0); }
+  .verdict-final { display: flex; flex-direction: column; align-items: center; gap: clamp(14px,2.5vh,22px); margin-top: 6px; }
+
+  /* מסך תוצאת השוק */
+  #screen-stake, #screen-trade { justify-content: center; }
+  .result-panel { position: relative; border: 3px double var(--green); background: rgba(3,10,7,0.97); box-shadow: 0 0 40px rgba(0,0,0,0.85), inset 0 0 40px rgba(0,255,120,0.05); width: min(92vw, 640px); }
+  .result-body { display: flex; flex-direction: column; align-items: center; gap: clamp(12px,2.2vh,22px); padding: clamp(20px,3.5vw,40px); }
+  .result-head { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; justify-content: center; }
+  .result-tkr { font-size: clamp(26px,5vw,44px); color: var(--amber); letter-spacing: 3px; text-shadow: 0 0 14px var(--amber); }
+  .result-act { border: 1px solid var(--green-dim); padding: 3px 12px; letter-spacing: 2px; font-size: clamp(12px,1.6vw,16px); color: var(--muted); }
+  .result-act.BUY { color: var(--buy); border-color: var(--buy); }
+  .result-act.SELL { color: var(--sell); border-color: var(--sell); }
+  .result-act.HOLD { color: var(--hold); border-color: var(--hold); }
+  .result-grid { display: flex; gap: clamp(10px,2vw,26px); flex-wrap: wrap; justify-content: center; }
+  .result-cell { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 92px; padding: 10px 14px; border: 1px solid var(--green-dim); background: rgba(0,20,10,0.4); }
+  .rc-k { font-size: 11px; letter-spacing: 2px; color: var(--muted); }
+  .rc-v { font-size: clamp(16px,2.4vw,24px); color: var(--green); text-shadow: 0 0 8px var(--green-glow); }
+  .result-pl { font-size: clamp(30px,6vw,56px); letter-spacing: 2px; font-weight: 700; }
+  .result-pl.win { color: var(--buy); text-shadow: 0 0 18px var(--buy); }
+  .result-pl.loss { color: var(--sell); text-shadow: 0 0 18px var(--sell); }
+  .result-pl.flat { color: var(--hold); text-shadow: 0 0 12px var(--hold); }
+  .result-verdict { font-size: clamp(18px,3vw,30px); letter-spacing: 4px; }
+  .result-verdict.win { color: var(--buy); text-shadow: 0 0 14px var(--buy); }
+  .result-verdict.loss { color: var(--sell); text-shadow: 0 0 14px var(--sell); }
+  .result-verdict.flat { color: var(--hold); text-shadow: 0 0 12px var(--hold); }
+
+  /* בחירת גודל פוזיציה */
+  .stake-amount { font-size: clamp(34px,7vw,64px); letter-spacing: 2px; color: var(--green); text-shadow: 0 0 16px var(--green-glow); font-weight: 700; }
+  .stake-reco-tag { font-size: 12px; letter-spacing: 2px; color: var(--amber); min-height: 16px; }
+  #stake-slider { width: min(80vw, 460px); accent-color: var(--green); height: 4px; cursor: pointer; }
+  .stake-scale { display: flex; justify-content: space-between; width: min(80vw, 460px); font-size: 11px; letter-spacing: 1px; color: var(--muted); }
+
+  /* מסחר חי */
+  .live-dot { color: var(--sell); animation: livepulse 1s steps(2) infinite; }
+  @keyframes livepulse { 50% { opacity: 0; } }
+  .trade-top { display: flex; align-items: baseline; gap: 18px; }
+  .trade-price { font-size: clamp(30px,6vw,52px); color: var(--green); text-shadow: 0 0 14px var(--green-glow); font-weight: 700; letter-spacing: 1px; }
+  .trade-move { font-size: clamp(16px,2.6vw,26px); letter-spacing: 1px; }
+  #trade-chart { width: min(88vw, 560px); height: auto; border: 1px solid var(--green-dim); background: rgba(0,15,8,0.5); }
+
+  /* דף סיכום */
+  #screen-summary { justify-content: center; }
+  .sum-name { font-size: clamp(20px,3.6vw,34px); color: var(--amber); letter-spacing: 3px; text-shadow: 0 0 12px var(--amber); }
+  .sum-shots { display: flex; gap: clamp(14px,3vw,36px); flex-wrap: wrap; justify-content: center; }
+  .sum-shot { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .sum-img { width: clamp(150px,32vw,250px); aspect-ratio: 4/3; border: 3px double var(--green); background: #02110a center/cover no-repeat; box-shadow: 0 0 18px rgba(46,230,107,0.15); filter: saturate(.85) contrast(1.05); }
+  .sum-img.empty { display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; letter-spacing: 2px; }
+  .sum-shot figcaption { font-size: 12px; letter-spacing: 2px; color: var(--muted); }
+  .sum-line { font-size: clamp(13px,2vw,18px); color: var(--ink); letter-spacing: 1px; max-width: 44ch; }
+  .sum-scores { display: flex; gap: clamp(10px,2vw,20px); flex-wrap: wrap; justify-content: center; width: 100%; }
+  .sum-score { flex: 1 1 150px; max-width: 220px; border: 1px solid var(--green-dim); background: rgba(0,20,10,0.4);
+    padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .ss-k { font-size: 11px; letter-spacing: 2px; color: var(--muted); text-align: center; }
+  .ss-v { font-family: var(--font-dot); font-weight: 900; font-size: clamp(22px,4vw,34px); color: var(--green); text-shadow: 0 0 12px var(--green-glow); }
+  .ss-v.hold { color: var(--hold); text-shadow: 0 0 12px var(--hold); }
+  .ss-v.sell { color: var(--sell); text-shadow: 0 0 12px var(--sell); }
+  .ss-bar { width: 100%; height: 5px; background: var(--green-dim); overflow: hidden; }
+  .ss-bar i { display: block; height: 100%; width: 0; background: var(--green); box-shadow: 0 0 8px var(--green-glow); transition: width .6s ease; }
+
+  /* ---- דוסייה מסכמת (תבנית קבועה, תוכן אישי) ---- */
+  #screen-summary { justify-content: flex-start; padding: 3vh 0 12vh; }
+  .result-panel.dossier { width: min(96vw, 900px); max-height: none; }
+  .dossier-body { align-items: stretch; gap: clamp(14px,2vh,20px); }
+  .doss-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    border-bottom: 1px dashed var(--green-dim); padding-bottom: 10px; }
+  .doss-head .sum-name { margin: 0; }
+  .doss-id { font-size: 12px; letter-spacing: 2px; color: var(--muted); }
+  .dsec { border: 1px solid var(--green-dim); background: rgba(0,18,10,0.34); }
+  .dsec-h { font-family: var(--font-term); font-size: 12px; letter-spacing: 3px; color: var(--bg-0);
+    background: var(--green-dim); padding: 5px 12px; }
+  .dsec-body { padding: clamp(12px,2vw,18px); display: flex; flex-direction: column; gap: 12px; }
+  /* טבלת מפתח-ערך */
+  .kv { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 6px 22px; width: 100%; }
+  .kv .kv-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+    border-bottom: 1px dotted rgba(46,230,107,0.14); padding: 4px 0; min-width: 0; }
+  .kv .kv-k { font-size: 11px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; white-space: nowrap; }
+  .kv .kv-v { font-family: var(--font-term); font-size: clamp(13px,1.6vw,16px); color: var(--green);
+    text-shadow: 0 0 8px var(--green-glow); text-align: right; overflow-wrap: anywhere; }
+  .kv .kv-v.amber { color: var(--amber); text-shadow: 0 0 8px var(--amber); }
+  .kv .kv-v.warn { color: var(--sell); text-shadow: 0 0 8px var(--sell); }
+  .kv .kv-v.hold { color: var(--hold); text-shadow: 0 0 8px var(--hold); }
+  .kv .kv-row.full { grid-column: 1 / -1; }
+  /* זהות: דיוקן + פרטים */
+  .id-row { flex-direction: row; align-items: center; gap: clamp(14px,3vw,26px); flex-wrap: wrap; }
+  .id-portrait { position: relative; width: clamp(120px,26vw,168px); aspect-ratio: 3/4; flex: 0 0 auto;
+    border: 2px solid var(--green); background: #02110a; overflow: hidden; box-shadow: 0 0 18px rgba(46,230,107,0.18); }
+  .id-portrait video, .id-portrait img { width: 100%; height: 100%; object-fit: cover; display: block;
+    filter: brightness(1.05) contrast(1.06) saturate(1.12); }
+  .id-portrait::after { content:''; position:absolute; inset:0; pointer-events:none;
+    background: repeating-linear-gradient(0deg, rgba(0,0,0,0.16) 0 2px, transparent 2px 4px); mix-blend-mode: multiply; }
+  .id-portrait .sum-img.empty { width:100%; height:100%; border:0; }
+  .id-row .kv { flex: 1 1 220px; }
+  /* קלפים מוקטנים */
+  .sum-cards { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: clamp(10px,2vw,18px); }
+  .sum-card { width: clamp(96px,20vw,140px); display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .sum-card .sc-img { width: 100%; aspect-ratio: 2/3; border: 2px double var(--green-dim); background: #02110a;
+    overflow: hidden; box-shadow: inset 0 0 18px rgba(46,230,107,0.06); }
+  .sum-card .sc-img img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .sum-card .sc-lbl { font-size: 10px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; }
+  .sum-card .sc-name { font-family: var(--font-dot); font-size: 12px; color: var(--green); text-shadow: 0 0 8px var(--green-glow); text-align: center; line-height: 1.15; }
+  .dsec-verdict { font-size: clamp(13px,1.8vw,17px); line-height: 1.5; color: var(--ink); border-inline-start: 3px solid var(--amber);
+    padding-inline-start: 12px; background: rgba(255,179,71,0.05); }
+  .dsec-verdict b { color: var(--amber); }
+  .trade-sec { align-items: center; }
+  .sum-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  @media (max-width: 560px){ .kv { grid-template-columns: 1fr; } }
+
+  /* ---- גיליון הדפסה (מוסתר במסך, מוצג רק בהדפסה) ---- */
+  #print-sheet { display: none; }
+  @media print {
+    @page { margin: 6mm; }
+    html, body { background: #fff !important; }
+    body > *:not(#print-sheet) { display: none !important; }
+    #print-sheet { display: block !important; color: #000; background: #fff;
+      font-family: 'Share Tech Mono', 'Courier New', monospace; font-size: 12px; line-height: 1.5;
+      width: 100%; padding: 2mm 1mm;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    #print-sheet * { color: #000 !important; text-shadow: none !important; box-shadow: none !important; }
+    #print-sheet .p-title { text-align: center; font-weight: 700; font-size: 15px; letter-spacing: 1px; }
+    #print-sheet .p-sub { text-align: center; font-size: 11px; margin-bottom: 6px; }
+    #print-sheet .p-rule { border-top: 1px dashed #000; margin: 6px 0; }
+    #print-sheet .p-h { font-weight: 700; letter-spacing: 1px; margin: 6px 0 3px; border-bottom: 1px solid #000; }
+    #print-sheet .pr { display: flex; justify-content: space-between; gap: 10px; }
+    #print-sheet .pr .pk { text-transform: uppercase; }
+    #print-sheet .pr .pv { text-align: right; font-weight: 700; }
+    #print-sheet .p-note { margin-top: 6px; font-size: 11px; font-style: italic; }
+    #print-sheet .p-big { text-align: center; font-weight: 700; font-size: 18px; margin: 4px 0; }
+    #print-sheet .p-foot { text-align: center; font-size: 10px; margin-top: 8px; }
+    /* דיוקן + קלפים בגווני אפור */
+    #print-sheet img { filter: grayscale(1) contrast(1.05); }
+    #print-sheet .p-id { display: flex; gap: 8px; align-items: flex-start; }
+    #print-sheet .p-portrait-wrap { flex: 0 0 auto; }
+    #print-sheet .p-portrait { width: 34mm; height: auto; border: 1px solid #000; display: block; }
+    #print-sheet .p-portrait.ready-bw { filter: none; }   /* כבר שחור-לבן מוכן להדפסה */
+    #print-sheet .p-idkv { flex: 1 1 auto; }
+    #print-sheet .p-cards { display: flex; gap: 4mm; justify-content: space-between; }
+    #print-sheet .p-card { flex: 1 1 0; text-align: center; }
+    #print-sheet .p-cardimg { width: 100%; max-width: 26mm; height: auto; border: 1px solid #000; display: block; margin: 0 auto 2px;
+      filter: grayscale(1) invert(1) contrast(1.1); }   /* היפוך → קווים כהים על רקע לבן, חוסך דיו */
+    #print-sheet .p-cardlbl { font-size: 9px; text-transform: uppercase; }
+    #print-sheet .p-cardname { font-size: 10px; font-weight: 700; }
+  }
+
+  .footer-controls { position: fixed; bottom: 38px; inset-inline: 0; display: flex; gap: 12px; justify-content: center; z-index: 41; }
+  .mini { background: rgba(2,8,5,0.8); border: 1px solid var(--green-dim); color: var(--muted); padding: 6px 16px; cursor: pointer; font-family: var(--font-term); font-size: 12px; letter-spacing: 1px; }
+  .mini:hover { color: var(--green); border-color: var(--green); }
+  /* תווית בסגנון DOS — וידאו הפוך (רקע ירוק, טקסט שחור) */
+  .badge { position: fixed; top: 38px; inset-inline-end: 20px; background: var(--green); color: var(--bg-0);
+    font-size: 12px; letter-spacing: 3px; z-index: 41; padding: 2px 10px; font-weight: 700; box-shadow: 0 0 12px var(--green-glow); }
+  .unsupported { color: var(--sell); font-size: 13px; max-width: 46ch; }
+
+  /* כפתור "המשך" אחרי סיום הסריקה — בולט ומהבהב כדי שלא יוחמץ */
+  .btn.await-continue { animation: contPulse 1.2s ease-in-out infinite; border-color: var(--amber); color: var(--amber); }
+  .btn.await-continue:hover { background: var(--amber); color: var(--bg-0); }
+  @keyframes contPulse { 0%,100%{ box-shadow: 0 0 10px var(--green-glow); } 50%{ box-shadow: 0 0 30px var(--amber), 0 0 50px var(--amber); } }
+  .scan-done-note { color: var(--amber); font-size: clamp(13px,1.8vw,16px); letter-spacing: 2px; min-height: 1.2em; }
+
+  /* הודעת אזהרה — ניתוח סריקת הפנים */
+  .scan-analysis-overlay { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.80); padding: 4vh 4vw; animation: boot .3s both; }
+  .scan-analysis-panel { position: relative; border: 3px double var(--amber); background: rgba(7,9,4,0.98);
+    box-shadow: 0 0 46px rgba(255,179,71,0.32), inset 0 0 60px rgba(255,179,71,0.05);
+    max-width: min(720px, 94vw); max-height: 90vh; overflow: auto; animation: warnPop .35s ease both;
+    scrollbar-width: thin; }
+  .sa-titlebar { position: sticky; top: 0; z-index: 2; background: var(--amber); color: var(--bg-0); font-weight: 700;
+    letter-spacing: 4px; text-align: center; padding: 8px 12px; font-size: clamp(12px,1.8vw,17px);
+    animation: saBlink 1.15s steps(1) infinite; }
+  @keyframes saBlink { 0%,100%{ background: var(--amber); } 50%{ background: var(--sell); } }
+  .sa-body { display: flex; flex-direction: column; gap: clamp(12px,2vh,18px); padding: clamp(18px,3vw,34px); text-align: start; }
+  .sa-profile { color: var(--amber); font-size: clamp(13px,1.9vw,18px); letter-spacing: 2px; text-align: center;
+    text-shadow: 0 0 10px rgba(255,179,71,0.4); }
+  .sa-intro { color: var(--ink); font-size: clamp(13px,1.7vw,16px); line-height: 1.55; text-align: center; opacity: .9; }
+  .sa-intro .he { display: block; color: var(--muted); font-size: .85em; margin-top: 4px; }
+  .sa-lines { display: flex; flex-direction: column; gap: 12px; }
+  .sa-line { display: flex; gap: 10px; align-items: baseline; color: var(--ink);
+    font-size: clamp(12px,1.6vw,15px); line-height: 1.5; padding-inline-start: 4px;
+    border-inline-start: 2px solid rgba(255,179,71,0.35); }
+  .sa-line .tag { color: var(--green); flex: 0 0 auto; letter-spacing: 1px; font-size: .92em; white-space: nowrap;
+    text-shadow: 0 0 8px var(--green-glow); }
+  .sa-line .he { display: block; color: var(--muted); font-size: .82em; margin-top: 3px; }
+  .sa-verdict { border-top: 1px solid rgba(255,179,71,0.3); padding-top: 14px; color: var(--amber);
+    font-size: clamp(13px,2vw,18px); line-height: 1.5; text-align: center; text-shadow: 0 0 10px rgba(255,179,71,0.35); }
+  .sa-verdict .he { display: block; color: var(--muted); font-size: .8em; margin-top: 6px; text-shadow: none; }
+  .sa-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
+
+  /* ===== גלגל המזל ===== */
+  #screen-wheel { gap: 1.4vh; }
+  /* מרכז הגלגל ואורך המחוג — ניתנים לכיוונון עדין לפי התמונה */
+  .wheel-stage { position: relative; width: min(92vw, 560px); aspect-ratio: 1 / 1;
+    --wheel-cx: 50%; --wheel-cy: 47%; --wheel-len: 33%; }
+  .wheel-scene { width: 100%; height: 100%; object-fit: contain; display: block;
+    filter: drop-shadow(0 0 12px var(--green-glow)); }
+  /* מחוג מסתובב (הגלגל עצמו נשאר קבוע) — ברירת מחדל מצביע למעלה = גזרה 01 */
+  .wheel-needle { position: absolute; left: var(--wheel-cx); top: var(--wheel-cy);
+    width: 18px; height: var(--wheel-len); transform-origin: bottom center;
+    transform: translate(-50%, -100%) rotate(0deg); z-index: 5; pointer-events: none;
+    transition: transform 5.4s cubic-bezier(.11,.72,.13,1); }
+  .wheel-needle.spinning-fast { transition: transform 5.4s cubic-bezier(.11,.72,.13,1); }
+  .wheel-needle::before { content: ''; position: absolute; left: 50%; top: 12px; bottom: 0; width: 4px;
+    transform: translateX(-50%); border-radius: 2px;
+    background: linear-gradient(to top, rgba(255,179,71,0.15), var(--amber));
+    box-shadow: 0 0 12px var(--amber), 0 0 22px rgba(255,179,71,0.5); }
+  .wheel-needle::after { content: ''; position: absolute; left: 50%; top: -4px; transform: translateX(-50%);
+    border-left: 9px solid transparent; border-right: 9px solid transparent; border-bottom: 20px solid var(--amber);
+    filter: drop-shadow(0 0 9px var(--amber)); }
+  .wheel-hubcap { position: absolute; left: var(--wheel-cx); top: var(--wheel-cy); width: 16px; height: 16px;
+    transform: translate(-50%, -50%); border-radius: 50%; z-index: 6; pointer-events: none;
+    background: var(--amber); box-shadow: 0 0 14px var(--amber), 0 0 26px rgba(255,179,71,0.6); }
+  .wheel-readout { min-height: 3em; max-width: 48ch; text-align: center; font-family: var(--font-term);
+    font-size: clamp(13px,1.9vw,17px); letter-spacing: 1px; color: var(--green); text-shadow: 0 0 8px var(--green-glow); line-height: 1.5; }
+  .wheel-readout b { color: var(--amber); text-shadow: 0 0 10px var(--amber); }
+  .wheel-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+
+  /* ===== Voice Stress ===== */
+  #screen-voice, #screen-cognitive { gap: 1.6vh; }
+  .voice-stage { display: flex; flex-direction: column; align-items: center; gap: clamp(10px,2vh,18px); width: min(680px, 92vw); }
+  .voice-scale { display: flex; gap: clamp(3px,0.8vw,9px); width: 100%; justify-content: center; }
+  .voice-scale .note { flex: 1 1 0; min-width: 0; border: 1px solid var(--green-dim); background: rgba(4,16,11,0.5);
+    padding: 8px 3px; text-align: center; color: var(--muted); font-size: clamp(11px,1.5vw,15px); letter-spacing: 1px;
+    transition: transform .12s, background .12s, color .12s, box-shadow .12s; }
+  .voice-scale .note .oct { display: block; font-size: .62em; opacity: .55; letter-spacing: 0; }
+  .voice-scale .note.hit { color: var(--green); border-color: var(--green); background: rgba(46,230,107,0.12); }
+  .voice-scale .note.active { color: var(--bg-0); background: var(--green); border-color: var(--green);
+    box-shadow: 0 0 18px var(--green-glow); transform: translateY(-4px); }
+  .voice-live { display: flex; align-items: baseline; gap: 14px; }
+  .voice-note { font-family: var(--font-dot); font-weight: 900; font-size: clamp(34px,7vw,60px); color: var(--green);
+    text-shadow: 0 0 16px var(--green-glow); min-width: 2ch; text-align: center; }
+  .voice-hz { color: var(--muted); font-size: clamp(13px,2vw,18px); letter-spacing: 1px; }
+  .db-wrap { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+  .db-meter { position: relative; width: 100%; height: 18px; background: rgba(2,8,5,0.7); border: 1px solid var(--green-dim); overflow: hidden; }
+  .db-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--green), var(--amber) 76%, var(--sell));
+    box-shadow: 0 0 14px var(--green-glow); transition: width .05s linear; }
+  .db-peak { position: absolute; top: 0; bottom: 0; width: 2px; left: 0; background: #eafff2; box-shadow: 0 0 8px #eafff2; transition: left .1s linear; }
+  .db-value { display: flex; justify-content: space-between; font-size: clamp(12px,1.7vw,16px); color: var(--green); letter-spacing: 1px; }
+  .db-max { color: var(--amber); }
+  .voice-readout { color: var(--amber); font-size: clamp(14px,2vw,18px); letter-spacing: 2px; min-height: 1.4em; text-align: center; }
+
+  /* ===== Cognitive Load ===== */
+  .cog-hud { display: flex; gap: clamp(10px,2.4vw,28px); flex-wrap: wrap; justify-content: center;
+    color: var(--muted); font-size: clamp(11px,1.5vw,14px); letter-spacing: 1px; }
+  .cog-hud b { color: var(--green); }
+  .cog-field { position: relative; width: min(880px, 94vw); height: min(46vh, 340px); border: 2px solid var(--green-dim);
+    background:
+      repeating-linear-gradient(0deg, rgba(46,230,107,0.05) 0 1px, transparent 1px 30px),
+      repeating-linear-gradient(90deg, rgba(46,230,107,0.05) 0 1px, transparent 1px 30px), rgba(2,10,6,0.6);
+    overflow: hidden; box-shadow: inset 0 0 40px rgba(0,0,0,0.6); }
+  .cog-start-hint { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+    padding: 24px; color: var(--muted); font-size: clamp(13px,1.9vw,17px); letter-spacing: 1px; line-height: 1.5; }
+  .cog-start-hint b { color: var(--amber); }
+  .cog-chip { position: absolute; white-space: nowrap; padding: 5px 10px; border: 1px solid var(--green-dim);
+    background: rgba(4,16,11,0.9); color: var(--ink); font-family: var(--font-term); font-size: clamp(12px,1.6vw,16px);
+    letter-spacing: 1px; cursor: pointer; user-select: none; -webkit-user-select: none; will-change: transform; z-index: 1; }
+  .cog-chip .px { color: var(--muted); font-size: .8em; margin-inline-start: 6px; }
+  .cog-chip.hit { background: var(--green); color: var(--bg-0); border-color: var(--green); box-shadow: 0 0 22px var(--green-glow); z-index: 2; }
+  .cog-chip.wrong { background: rgba(255,92,92,0.85); color: var(--bg-0); border-color: var(--sell); box-shadow: 0 0 18px rgba(255,92,92,0.6); }
+</style>
+</head>
+<body>
+  <div id="cosmos"></div>
+  <canvas id="chart"></canvas>
+  <div id="vignette"></div>
+  <div id="scanlines"></div>
+
+  <div class="ticker top"><div class="track" id="ticker-top"></div></div>
+  <div class="ticker bottom"><div class="track" id="ticker-bottom"></div></div>
+  <div class="badge">STO(MA)CK TERMINAL // SESSION OPEN</div>
+
+  <div class="stage">
+
+    <!-- מסך פתיחה -->
+    <section class="screen active" id="screen-intro">
+      <div class="panel">
+        <span class="c-tr"></span><span class="c-br"></span>
+        <div class="tag">STO(MA)CK TRADING TERMINAL · v1.0 · <span class="live">LIVE<span class="blink">_</span></span></div>
+        <h1>STO(MA)CK</h1>
+        <div class="subtitle">Before we analyze the market, we analyze you</div>
+        <button class="btn btn-primary" id="btn-begin">ENTER THE ROOM</button>
+      </div>
+    </section>
+
+    <!-- שלב 1: זיהוי האדם -->
+    <section class="screen" id="screen-identify">
+      <div class="step-dots" data-step="1"></div>
+      <div class="transmit" id="identify-orb">◉ TRANSMITTING</div>
+      <div class="ask"><span class="en">First, who are you?</span></div>
+      <div class="form">
+        <div class="field">
+          <label>NAME</label>
+          <div class="name-row">
+            <input id="f-name" type="text" placeholder="…" autocomplete="off" />
+            <div class="name-media" id="name-media" aria-hidden="true"></div>
+          </div>
+        </div>
+        <div class="field">
+          <label>AGE</label>
+          <input id="f-age" type="number" min="0" max="120" placeholder="…" />
+        </div>
+        <div class="field">
+          <label>HOW LONG HAVE YOU TRADED?</label>
+          <div class="chips" id="f-exp">
+            <button class="btn chip" data-val="new">&lt; 1Y</button>
+            <button class="btn chip" data-val="some">1–3Y</button>
+            <button class="btn chip" data-val="vet">3Y+</button>
+            <button class="btn chip" data-val="none">I DON'T</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>THIS WEEK YOU…</label>
+          <div class="chips" id="f-week">
+            <button class="btn chip" data-val="profit">PROFIT</button>
+            <button class="btn chip" data-val="loss">LOSS</button>
+            <button class="btn chip" data-val="flat">FLAT</button>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btn-identify-next">CONTINUE</button>
+    </section>
+
+    <!-- שלב 3: מה לא נותן לך מנוח -->
+    <section class="screen" id="screen-subject">
+      <div class="step-dots" data-step="2"></div>
+      <div class="transmit" id="subject-orb">◉ TRANSMITTING</div>
+      <div class="ask"><span class="en">What won't let you rest?</span></div>
+      <div class="listening" id="subject-wave"><span></span><span></span><span></span><span></span><span></span></div>
+      <p class="heard" id="subject-heard"></p>
+      <div class="options" id="subject-options">
+        <button class="btn" data-subject="QQQ">QQQ</button>
+        <button class="btn" data-subject="SPY">SPY</button>
+        <button class="btn" data-subject="NVDA">NVDA</button>
+        <button class="btn" data-subject="TSLA">TSLA</button>
+        <button class="btn" data-subject="AAPL">AAPL</button>
+        <button class="btn" data-subject="MSFT">MSFT</button>
+        <button class="btn" data-subject="AMZN">AMZN</button>
+        <button class="btn" data-subject="GOOGL">GOOGL</button>
+        <button class="btn" data-subject="META">META</button>
+        <button class="btn" data-subject="AMD">AMD</button>
+        <button class="btn" data-subject="Bitcoin">BTC</button>
+        <button class="btn" data-subject="Ethereum">ETH</button>
+      </div>
+      <p class="hint" style="color:var(--muted);font-size:13px;letter-spacing:1px;">
+        Pick one, or say it out loud — or name ANY other stock you have in mind.
+        <span style="display:block;opacity:.85">It can be any ticker, or any decision you keep avoiding.</span>
+      </p>
+    </section>
+
+    <!-- שלב 3: שאלות תחושת בטן -->
+    <section class="screen" id="screen-questions">
+      <div class="step-dots" data-step="3"></div>
+      <div class="transmit" id="question-orb">◉ TRANSMITTING</div>
+      <div class="ask"><span class="en" id="q-en"></span><span class="he" id="q-he"></span></div>
+      <div class="options" id="q-options"></div>
+      <div class="slider-wrap" id="q-slider" style="display:none">
+        <div class="slider-val" id="q-slider-val">50</div>
+        <input type="range" id="q-slider-input" min="0" max="100" value="50" />
+        <div class="scale"><span>0 · NOT AT ALL</span><span>100 · CERTAIN</span></div>
+        <button class="btn btn-primary" id="q-slider-next">CONFIRM</button>
+      </div>
+    </section>
+
+    <!-- שלב 4: סריקה ביומטרית -->
+    <section class="screen" id="screen-body">
+      <div class="step-dots" data-step="4"></div>
+      <div class="transmit" id="body-orb">◉ TRANSMITTING</div>
+      <div class="ask"><span class="en">Hold still. Every camera is on you now.</span></div>
+      <div class="scan-rig">
+        <div class="data-col" id="data-left2"></div>
+        <div class="data-col" id="data-left"></div>
+        <div class="scan-frame" id="scan-frame">
+          <video id="aura-video" autoplay playsinline muted></video>
+          <canvas id="track-canvas"></canvas>
+          <div class="scan-grid"></div>
+          <div class="scan-line" id="scan-line"></div>
+          <div class="scan-hud" id="hud-top"></div>
+          <div class="scan-placeholder" id="scan-placeholder"><span id="scan-ph-label">NO SIGNAL</span></div>
+        </div>
+        <div class="data-col" id="data-right"></div>
+        <div class="data-col" id="data-right2"></div>
+      </div>
+      <div class="aura-readout" id="aura-readout">AWAITING SCAN</div>
+      <div class="aura-meter"><div class="aura-meter-fill" id="aura-meter-fill"></div></div>
+      <button class="btn btn-primary" id="btn-scan-start">BEGIN SCAN</button>
+
+      <!-- הודעת אזהרה: ניתוח סריקת הפנים -->
+      <div class="scan-analysis-overlay" id="scan-analysis" style="display:none">
+        <div class="scan-analysis-panel">
+          <div class="sa-titlebar" id="sa-title">⚠&nbsp; BIOMETRIC ANALYSIS &nbsp;⚠</div>
+          <div class="sa-body">
+            <div class="sa-profile" id="sa-profile"></div>
+            <p class="sa-intro" id="sa-intro"></p>
+            <div class="sa-lines" id="sa-lines"></div>
+            <div class="sa-verdict" id="sa-verdict"></div>
+            <div class="sa-actions">
+              <button class="btn" id="sa-close">RE-READ SCAN</button>
+              <button class="btn btn-primary await-continue" id="sa-continue">CONTINUE</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- שלב 5: מבחן קול · Voice Stress -->
+    <section class="screen" id="screen-voice">
+      <div class="step-dots" data-step="5"></div>
+      <div class="transmit" id="voice-orb">◉ TRANSMITTING</div>
+      <div class="ask"><span class="en">Sing the scale. Do · Re · Mi · Fa · Sol · La · Si · Do.</span></div>
+      <p class="hint" style="color:var(--muted);font-size:13px;letter-spacing:1px;">
+        Press START and sing the eight notes rising. I am listening to your pitch and your nerve.
+        <span style="display:block;opacity:.85">לחצו START ושירו דו רה מי פה סול לה סי דו בעלייה.</span>
+      </p>
+      <div class="voice-stage">
+        <div class="voice-scale" id="voice-scale"></div>
+        <div class="voice-live">
+          <div class="voice-note" id="voice-note">—</div>
+          <div class="voice-hz" id="voice-hz">0 Hz</div>
+        </div>
+        <div class="db-wrap">
+          <div class="db-meter"><div class="db-fill" id="db-fill"></div><div class="db-peak" id="db-peak"></div></div>
+          <div class="db-value"><span id="db-value">-- dB</span><span class="db-max" id="db-max">PEAK -- dB</span></div>
+        </div>
+        <div class="voice-readout" id="voice-readout">AWAITING VOICE</div>
+        <div class="aura-meter"><div class="aura-meter-fill" id="voice-progress"></div></div>
+      </div>
+      <button class="btn btn-primary" id="btn-voice-start">START SINGING</button>
+
+      <!-- ניתוח קול -->
+      <div class="scan-analysis-overlay" id="voice-analysis" style="display:none">
+        <div class="scan-analysis-panel">
+          <div class="sa-titlebar" id="va-title">⚠&nbsp; VOICE STRESS ANALYSIS &nbsp;⚠</div>
+          <div class="sa-body">
+            <div class="sa-profile" id="va-profile"></div>
+            <p class="sa-intro" id="va-intro"></p>
+            <div class="sa-lines" id="va-lines"></div>
+            <div class="sa-verdict" id="va-verdict"></div>
+            <div class="sa-actions">
+              <button class="btn" id="va-close">SING AGAIN</button>
+              <button class="btn btn-primary await-continue" id="va-continue">CONTINUE</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- שלב 6: עומס קוגניטיבי · Cognitive Load -->
+    <section class="screen" id="screen-cognitive">
+      <div class="step-dots" data-step="6"></div>
+      <div class="transmit" id="cog-orb">◉ TRANSMITTING</div>
+      <div class="ask"><span class="en">Catch your ticker. Tap it before it escapes the noise.</span></div>
+      <div class="cog-hud">
+        <span>TARGET :: <b id="cog-target">—</b></span>
+        <span>HITS <b id="cog-hits">0</b>/<b id="cog-total">0</b></span>
+        <span>REACTION <b id="cog-react">-- ms</b></span>
+        <span>LOAD <b id="cog-load">--%</b></span>
+      </div>
+      <div class="cog-field" id="cog-field">
+        <div class="cog-start-hint" id="cog-start-hint">Your ticker streaks across a wall of noise. Tap <b>only your ticker</b> — every wrong tap costs you.</div>
+      </div>
+      <div class="voice-readout" id="cog-readout">AWAITING START</div>
+      <button class="btn btn-primary" id="btn-cog-start">START DRILL</button>
+
+      <!-- ניתוח עומס קוגניטיבי -->
+      <div class="scan-analysis-overlay" id="cog-analysis" style="display:none">
+        <div class="scan-analysis-panel">
+          <div class="sa-titlebar" id="ca-title">⚠&nbsp; COGNITIVE LOAD ANALYSIS &nbsp;⚠</div>
+          <div class="sa-body">
+            <div class="sa-profile" id="ca-profile"></div>
+            <p class="sa-intro" id="ca-intro"></p>
+            <div class="sa-lines" id="ca-lines"></div>
+            <div class="sa-verdict" id="ca-verdict"></div>
+            <div class="sa-actions">
+              <button class="btn" id="ca-close">RUN AGAIN</button>
+              <button class="btn btn-primary await-continue" id="ca-continue">CONTINUE</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- שלב 6.5: גלגל המזל -->
+    <section class="screen" id="screen-wheel">
+      <div class="step-dots" data-step="6"></div>
+      <div class="transmit" id="wheel-orb">◉ TRANSMITTING</div>
+      <div class="ask"><span class="en">Spin to trust your gut.</span></div>
+      <div class="wheel-stage" id="wheel-stage">
+        <img class="wheel-scene" id="wheel-scene" src="media/wheel-scene.png" alt="Wheel of fortune">
+        <div class="wheel-needle" id="wheel-needle"></div>
+        <div class="wheel-hubcap"></div>
+      </div>
+      <div class="wheel-readout" id="wheel-readout">/// SYSTEM READY /// PRESS SPIN AND FOLLOW YOUR INSTINCT</div>
+      <div class="wheel-actions">
+        <button class="btn btn-primary" id="btn-wheel-spin">SPIN THE WHEEL</button>
+        <button class="btn btn-primary await-continue" id="btn-wheel-continue" style="display:none">CONTINUE</button>
+      </div>
+    </section>
+
+    <!-- שלב 7: הטקס -->
+    <section class="screen" id="screen-ritual">
+      <div class="cards" id="ritual-cards">
+        <div class="card-slot">
+          <div class="card" id="card-0"><div class="face back"></div><div class="face front"><div class="symbol"></div></div></div>
+          <div class="caption"><div class="label" id="lbl-0"></div><div class="name"></div><div class="meaning"></div></div>
+        </div>
+        <div class="card-slot">
+          <div class="card" id="card-1"><div class="face back"></div><div class="face front"><div class="symbol"></div></div></div>
+          <div class="caption"><div class="label" id="lbl-1"></div><div class="name"></div><div class="meaning"></div></div>
+        </div>
+        <div class="card-slot">
+          <div class="card" id="card-2"><div class="face back"></div><div class="face front"><div class="symbol"></div></div></div>
+          <div class="caption"><div class="label" id="lbl-2"></div><div class="name"></div><div class="meaning"></div></div>
+        </div>
+      </div>
+      <div class="verdict-overlay" id="verdict-block" style="display:none">
+        <div class="verdict-panel">
+          <div class="v-titlebar">⚠  MARKET SIGNAL  ⚠</div>
+          <div class="v-body">
+            <div class="tag" id="verdict-stock"></div>
+            <div class="verdict" id="verdict-word"></div>
+            <div class="verdict-he" id="verdict-word-he"></div>
+            <p class="reveal" id="reveal-text"></p>
+            <p class="closer" id="closer-text"></p>
+            <div class="verdict-choice" id="verdict-choice" style="display:none">
+              <div class="choice-q">Will you accept what the room decided?</div>
+              <div class="choice-btns">
+                <button class="btn btn-primary" id="btn-accept">I ACCEPT</button>
+                <button class="btn btn-primary danger" id="btn-refuse">I REFUSE</button>
+              </div>
+            </div>
+            <div class="verdict-final" id="verdict-final" style="display:none">
+              <p class="closer" id="final-text"></p>
+              <button class="btn btn-primary" id="btn-restart">NEW RITUAL</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- שלב 6a: בחירת גודל פוזיציה -->
+    <section class="screen" id="screen-stake">
+      <div class="result-panel">
+        <div class="v-titlebar">▓  POSITION SIZE  ▓</div>
+        <div class="result-body">
+          <div class="result-head">
+            <span class="result-tkr" id="stake-ticker">TICKER</span>
+            <span class="result-act" id="stake-action">ACTION</span>
+          </div>
+          <p class="closer" id="stake-reco"></p>
+          <div class="stake-amount" id="stake-amount">$5,000</div>
+          <div class="stake-reco-tag" id="stake-reco-tag"></div>
+          <input type="range" id="stake-slider" min="500" max="50000" step="250" value="5000" />
+          <div class="stake-scale"><span>$500</span><span>$50,000</span></div>
+          <button class="btn btn-primary" id="btn-place">PLACE POSITION</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- שלב 6b: מסחר חי -->
+    <section class="screen" id="screen-trade">
+      <div class="result-panel">
+        <div class="v-titlebar" id="trade-titlebar"><span class="live-dot">●</span> LIVE · <span id="trade-ticker"></span></div>
+        <div class="result-body">
+          <div class="trade-top">
+            <span class="trade-price" id="trade-price">$0.00</span>
+            <span class="trade-move" id="trade-move">0.00%</span>
+          </div>
+          <canvas id="trade-chart" width="680" height="290"></canvas>
+          <div class="result-grid">
+            <div class="result-cell"><span class="rc-k">ENTRY</span><span class="rc-v" id="trade-entry">$0.00</span></div>
+            <div class="result-cell"><span class="rc-k">SIZE</span><span class="rc-v" id="trade-size">$0</span></div>
+            <div class="result-cell"><span class="rc-k">ACTION</span><span class="rc-v" id="trade-action">—</span></div>
+          </div>
+          <div class="result-pl" id="trade-pl">$0</div>
+          <div class="result-verdict" id="trade-verdict" style="display:none">—</div>
+          <p class="closer" id="trade-note" style="display:none"></p>
+          <button class="btn btn-primary" id="btn-restart2" style="display:none">SESSION SUMMARY &gt;&gt;</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- שלב 7: דף סיכום -->
+    <section class="screen" id="screen-summary">
+      <div class="result-panel dossier" style="width:min(96vw,900px)">
+        <div class="v-titlebar">▓  SESSION DOSSIER  ▓</div>
+        <div class="result-body dossier-body">
+          <div class="doss-head">
+            <div class="sum-name" id="sum-name">SUBJECT</div>
+            <div class="doss-id" id="sum-caseid">CASE #----</div>
+          </div>
+
+          <!-- A · זהות: דיוקן השם + פרטים -->
+          <div class="dsec">
+            <div class="dsec-h">// IDENTITY</div>
+            <div class="dsec-body id-row">
+              <div class="id-portrait" id="sum-portrait"><div class="sum-img empty">NO PORTRAIT</div></div>
+              <div class="kv" id="sum-identity"></div>
+            </div>
+          </div>
+
+          <!-- B · נתונים יבשים: מה ענית -->
+          <div class="dsec">
+            <div class="dsec-h">// INTAKE · WHAT YOU TOLD ME</div>
+            <div class="dsec-body kv" id="sum-intake"></div>
+          </div>
+
+          <!-- C · תוצאת הסריקה + מה אני חושב -->
+          <div class="dsec">
+            <div class="dsec-h">// BIOMETRIC READOUT</div>
+            <div class="dsec-body">
+              <div class="kv" id="sum-bio"></div>
+              <p class="dsec-verdict" id="sum-bio-verdict"></p>
+            </div>
+          </div>
+
+          <!-- D · תוצאות המבחנים -->
+          <div class="dsec">
+            <div class="dsec-h">// STRESS &amp; COGNITION TESTS</div>
+            <div class="dsec-body kv" id="sum-tests"></div>
+          </div>
+
+          <!-- ציונים מסכמים -->
+          <div class="sum-scores" id="sum-scores">
+            <div class="sum-score"><div class="ss-k">DECISION CONFIDENCE</div><div class="ss-v" id="ss-decision">--%</div><div class="ss-bar"><i id="ss-decision-bar"></i></div></div>
+            <div class="sum-score"><div class="ss-k">RISK ASSESSMENT</div><div class="ss-v" id="ss-risk">--</div><div class="ss-bar"><i id="ss-risk-bar"></i></div></div>
+            <div class="sum-score"><div class="ss-k">BEHAVIORAL SCORE</div><div class="ss-v" id="ss-behavior">--</div><div class="ss-bar"><i id="ss-behavior-bar"></i></div></div>
+          </div>
+
+          <!-- E · הקלפים -->
+          <div class="dsec">
+            <div class="dsec-h">// THE CARDS</div>
+            <div class="dsec-body sum-cards" id="sum-cards"></div>
+          </div>
+
+          <!-- F · כמה הרווחת -->
+          <div class="dsec">
+            <div class="dsec-h">// THE TRADE</div>
+            <div class="dsec-body trade-sec">
+              <div class="sum-line" id="sum-trade"></div>
+              <div class="result-pl" id="sum-pl">$0</div>
+              <div class="result-verdict" id="sum-verdict">—</div>
+            </div>
+          </div>
+
+          <p class="closer" id="sum-note"></p>
+          <button class="btn btn-primary" id="btn-restart3">NEW RITUAL</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- גיליון הדפסה נקי (שחור על לבן) — נשלח למדפסת התרמית -->
+  <div id="print-sheet" aria-hidden="true"></div>
+
+  <div class="footer-controls">
+    <button class="mini" id="btn-skip">&gt;&gt; skip</button>
+    <button class="mini" id="btn-mute">[x] mute</button>
+  </div>
+
+<script>
+/* =========================================================
+   THE ORACLE — a 5-step ritual that reads the person.
+   The machine never analyzes the market. It mirrors the human.
+   ========================================================= */
+const State = {
+  name:'', age:'', experience:'', week:'',
+  subject:'',
+  act:'', hope:'', fear:'', confidence:50,
+  steadiness:null, auraTurbulence:null, auraColor:null,
+  expression:null, gazeAway:false, blinks:0,
+  blinkLatency:null, eyeContact:null,
+  voiceStress:null, vocalRange:null, peakDb:null, voiceReadout:null,
+  cognitiveLoad:null, reactionMs:null, hitRate:null,
+  portrait:null, cards:null, wheelResult:null,
+  muted:false
+};
+
+/* ----- טיקר ----- */
+(function ticker(){
+  const syms = ['QQQ','SPY','TSLA','NVDA','AAPL','BTC','ETH','AMD','META','MSFT','GME','AMZN','GOOGL','SOXL'];
+  function row(){ return syms.map(s => {
+    const price=(Math.random()*800+20).toFixed(2), chg=(Math.random()*6-3), up=chg>=0;
+    return `<span class="tk"><span class="sym">${s}</span> ${price} <span class="${up?'up':'down'}">${up?'\u25B2':'\u25BC'}${Math.abs(chg).toFixed(2)}%</span></span>`;
+  }).join(''); }
+  document.getElementById('ticker-top').innerHTML = row()+row();
+  document.getElementById('ticker-bottom').innerHTML = row()+row();
+})();
+
+/* ----- גרף רקע ----- */
+(function chart(){
+  const c=document.getElementById('chart'), ctx=c.getContext('2d'); let w,h,d1,d2;
+  function resize(){ c.width=innerWidth; c.height=innerHeight; w=c.width; h=c.height;
+    const n=Math.ceil(w/6)+2; d1=new Array(n).fill(h*0.55); d2=new Array(n).fill(h*0.45); }
+  let frame=0;
+  function walk(a,v){ a.shift(); let l=a[a.length-1]+(Math.random()-0.5)*v; l=Math.max(h*0.12,Math.min(h*0.88,l)); a.push(l); }
+  function grid(){ ctx.strokeStyle='rgba(46,230,107,0.05)'; ctx.lineWidth=1;
+    for(let x=0;x<w;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+    for(let y=0;y<h;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();} }
+  function line(a,col){ ctx.strokeStyle=col; ctx.lineWidth=1.4; ctx.beginPath();
+    for(let i=0;i<a.length;i++){const x=i*6; i?ctx.lineTo(x,a[i]):ctx.moveTo(x,a[i]);} ctx.stroke(); }
+  function tick(){ ctx.clearRect(0,0,w,h); grid(); if(frame++%2===0){walk(d1,26);walk(d2,18);}
+    line(d1,'rgba(46,230,107,0.18)'); line(d2,'rgba(255,179,71,0.12)'); requestAnimationFrame(tick); }
+  addEventListener('resize',resize); resize(); tick();
+})();
+
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+
+/* ----- מחווני שלב ----- */
+function renderSteps(){
+  document.querySelectorAll('.step-dots').forEach(el=>{
+    const step=+el.dataset.step; el.innerHTML='';
+    for(let i=1;i<=6;i++){ const d=document.createElement('i'); if(i<step)d.className='done'; if(i===step)d.className='on'; el.appendChild(d); }
+  });
+}
+renderSteps();
+
+/* ----- קול הרוח: רגוע ----- */
+let chosenVoice=null;
+function pickVoice(){
+  const v=speechSynthesis.getVoices(); if(!v.length)return;
+  const prefer=['Samantha','Microsoft Aria','Microsoft Jenny','Microsoft Michelle','Microsoft Sonia','Microsoft Libby','Moira','Tessa','Fiona','Karen','Google UK English Female','Google US English','Microsoft Zira'];
+  for(const n of prefer){const f=v.find(x=>x.name.includes(n)); if(f){chosenVoice=f;return;}}
+  chosenVoice=v.find(x=>/^en/i.test(x.lang)&&/female|woman|samantha|aria|jenny|sonia|libby/i.test(x.name))||v.find(x=>/^en/i.test(x.lang))||v[0];
+}
+if('speechSynthesis'in window){ speechSynthesis.onvoiceschanged=pickVoice; pickVoice(); }
+
+let currentOrb=null; function setOrb(el){ currentOrb=el; }
+function speak(text){
+  return new Promise(resolve=>{
+    if(State.muted||!('speechSynthesis'in window)){resolve();return;}
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    if(chosenVoice)u.voice=chosenVoice;
+    u.lang='en-US'; u.rate=0.84; u.pitch=0.95; u.volume=0.85;
+    u.onstart=()=>{ if(currentOrb)currentOrb.classList.add('speaking'); };
+    const done=()=>{ if(currentOrb)currentOrb.classList.remove('speaking'); resolve(); };
+    u.onend=done; u.onerror=done; speechSynthesis.speak(u);
+  });
+}
+
+/* ----- פסקול אווירה ----- */
+let audioCtx=null, ambientGain=null;
+function startAmbient(){
+  /* צליל רקע (זמזום אווירה) בוטל לבקשת המשתמש — היה גורם לרעש בפתיחה */
+}
+
+/* ----- האזנה ----- */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let recognition=null, recognizing=false;
+if(SR){ recognition=new SR(); recognition.lang='en-US'; recognition.continuous=false; recognition.interimResults=true; }
+else { const n=document.getElementById('unsupported-note'); if(n) n.textContent='This browser does not support voice recognition. Touch only.'; }
+function listen({waveEl,heardEl,onResult}){
+  if(!recognition)return; let finalText=""; if(waveEl)waveEl.classList.add('on');
+  recognition.onresult=(e)=>{ let interim=""; for(let i=e.resultIndex;i<e.results.length;i++){const t=e.results[i][0].transcript; if(e.results[i].isFinal)finalText+=t; else interim+=t;} if(heardEl)heardEl.textContent=(finalText||interim).trim(); };
+  recognition.onend=()=>{ recognizing=false; if(waveEl)waveEl.classList.remove('on'); const t=(finalText||(heardEl?heardEl.textContent:"")).trim(); if(t&&onResult)onResult(t); };
+  recognition.onerror=()=>{ recognizing=false; if(waveEl)waveEl.classList.remove('on'); };
+  try{ recognition.start(); recognizing=true; }catch(e){}
+}
+function stopListening(){ if(recognition&&recognizing){try{recognition.stop();}catch(e){}} }
+
+/* אזהרה אם נפתח כקובץ (file://) — המצלמה תיחסם תמיד */
+if(location.protocol==='file:'){
+  const note=document.getElementById('unsupported-note');
+  if(note) note.innerHTML='⚠ Opened as a file — the camera will be blocked. Open via <b>http://localhost:8000</b> for the camera to work.';
+}
+
+/* =========================================================
+   זיהוי שמות → מדיה (התאמה מטושטשת ~90%, סלחנית לטעויות אותיות)
+   להוספת שם חדש: הוסף/י רשומה ל-NAME_MEDIA עם type:'video' או 'image'.
+   ========================================================= */
+const NAME_MEDIA = [
+  { names:['שרון רהב'], type:'video', src:'media/sharon-rahav-rev.mp4', printSrc:'media/sharon-rahav-print.png' },
+  { names:['מיכאל ששון'], type:'video', src:'media/michael-sasson-rev.mp4' },
+  { names:['מיכל קסטיאל'], type:'video', src:'media/michal-kastiel-rev.mp4' }
+];
+function normName(s){
+  return (s||'')
+    .toLowerCase()
+    .replace(/[\u0591-\u05C7]/g,'')      // הסרת ניקוד
+    .replace(/[^\p{L}\p{N}]+/gu,' ')     // רק אותיות/ספרות
+    .trim().replace(/\s+/g,' ');
+}
+function levenshtein(a,b){
+  const m=a.length, n=b.length;
+  if(!m) return n; if(!n) return m;
+  let prev=Array.from({length:n+1},(_,j)=>j), cur=new Array(n+1);
+  for(let i=1;i<=m;i++){
+    cur[0]=i;
+    for(let j=1;j<=n;j++){
+      const cost=a[i-1]===b[j-1]?0:1;
+      cur[j]=Math.min(prev[j]+1, cur[j-1]+1, prev[j-1]+cost);
+    }
+    [prev,cur]=[cur,prev];
+  }
+  return prev[n];
+}
+function matchNameMedia(input){
+  const q=normName(input); if(!q) return null;
+  for(const entry of NAME_MEDIA){
+    for(const name of entry.names){
+      const target=normName(name); if(!target) continue;
+      const dist=levenshtein(q,target);
+      const sim=1-dist/Math.max(q.length,target.length);
+      const tol=Math.max(1,Math.round(target.length*0.15)); // סלחנות לטעויות אותיות
+      if(q===target || sim>=0.85 || dist<=tol) return entry;
+    }
+  }
+  return null;
+}
+(function nameMediaWatcher(){
+  const input=document.getElementById('f-name');
+  const box=document.getElementById('name-media');
+  if(!input||!box) return;
+  let currentSrc=null;
+  function render(){
+    const m=matchNameMedia(input.value);
+    if(m){
+      if(currentSrc!==m.src){
+        currentSrc=m.src; box.innerHTML='';
+        box.classList.remove('materializing','materialized');
+        if(m.type==='video'){
+          box.classList.add('holo');
+          const v=document.createElement('video');
+          v.src=m.src; v.muted=true; v.loop=false; v.autoplay=true; v.preload='auto';
+          v.playsInline=true; v.setAttribute('playsinline','');
+          const grid=document.createElement('div'); grid.className='holo-grid';
+          const scan=document.createElement('div'); scan.className='holo-scan';
+          const pct=document.createElement('div'); pct.className='holo-pct';
+          box.appendChild(v); box.appendChild(grid); box.appendChild(scan); box.appendChild(pct);
+          v.play().catch(()=>{});
+          runHologram(box, v, scan, pct);
+        } else {
+          box.classList.remove('holo');
+          const img=document.createElement('img'); img.src=m.src; img.alt=''; box.appendChild(img);
+        }
+      }
+      box.classList.add('show');
+    } else {
+      box.classList.remove('show'); currentSrc=null;
+      setTimeout(()=>{ if(!box.classList.contains('show')){ box.innerHTML=''; box.classList.remove('holo','materializing','materialized'); } }, 500);
+    }
+  }
+  function runHologram(box, v, scan, pct){
+    const DUR=6000, t0=performance.now();
+    box.classList.add('materializing');
+    function frame(now){
+      if(!box.classList.contains('show')){ box.classList.remove('materializing'); return; }
+      const p=Math.min(1,(now-t0)/DUR);
+      const top=(1-p)*100;
+      v.style.clipPath='inset('+top.toFixed(1)+'% 0 0 0)';
+      scan.style.top=top.toFixed(1)+'%';
+      pct.textContent=Math.round(p*100)+'%';
+      if(p<1){ requestAnimationFrame(frame); }
+      else { v.style.clipPath='inset(0% 0 0 0)'; box.classList.remove('materializing'); box.classList.add('materialized'); }
+    }
+    requestAnimationFrame(frame);
+  }
+  input.addEventListener('input', render);
+})();
+
+/* =========================================================
+   STEP 0 → 1 : פתיחה וזיהוי
+   ========================================================= */
+document.getElementById('btn-begin').addEventListener('click', async ()=>{
+  holoCue('start'); // הולוגרמה: הדלקה בתחילת החוויה
+  startAmbient(); show('screen-identify'); setOrb(document.getElementById('identify-orb'));
+  await speak('Before we analyze the market, we will analyze you. Tell me who you are.');
+  document.getElementById('f-name').focus();
+});
+
+setupChips('f-exp', v=>State.experience=v);
+setupChips('f-week', v=>State.week=v);
+function setupChips(containerId, set){
+  const cont=document.getElementById(containerId);
+  cont.querySelectorAll('.btn').forEach(b=>b.addEventListener('click',()=>{
+    cont.querySelectorAll('.btn').forEach(x=>x.classList.remove('sel')); b.classList.add('sel'); set(b.dataset.val);
+  }));
+}
+
+document.getElementById('btn-identify-next').addEventListener('click', async ()=>{
+  State.name=document.getElementById('f-name').value.trim();
+  State.age=document.getElementById('f-age').value.trim();
+  State.portrait=matchNameMedia(State.name); // דיוקן הזהות התואם לשם (וידאו/תמונה) — לסיכום
+  holoPlay(State.name); // הפעלת ההולוגרמה לאותו אדם (בטוח: נכשל בשקט אם הגשר לא רץ)
+  startSubject();
+});
+
+/* =========================================================
+   גשר ההולוגרמה (מאוורר Z3H) — מערכת "רגעים" (cues).
+   ---------------------------------------------------------
+   כדי להוסיף/לשנות מה קורה במאוורר ברגע מסוים באתר:
+   פשוט ערוך/הוסף שורה ב-HOLO_CUES, ואז קרא holoCue('שם-הרגע')
+   במקום המתאים בקוד. הכל נכשל בשקט אם הגשר/המאוורר כבויים.
+
+   סוגי פעולה אפשריים לכל רגע:
+     { power:'on' }     — הדלקת המאוורר (עובד כבר עכשיו)
+     { power:'off' }    — כיבוי
+     { name:'<שם>' }    — נגן וידאו לפי שם האדם (כשנחבר בחירת וידאו)
+     { video:<מספר> }   — נגן וידאו לפי אינדקס
+     { ascii:'Power=1' }— שליחת פקודה גולמית ישירה למאוורר
+   ========================================================= */
+const HOLO_BRIDGE='http://127.0.0.1:8777';
+const HOLO_CUES = {
+  start:    { power:'on'  },   // תחילת החוויה
+  identify: { power:'on'  },   // רגע הזיהוי (בהמשך: { name:'' } לוידאו אישי)
+  scan:     { power:'on'  },   // סריקת פנים
+  voice:    { power:'on'  },   // מבחן הקול
+  cognitive:{ power:'on'  },   // המשחק
+  wheel:    { power:'on'  },   // גלגל המזל
+  tarot:    { power:'on'  },   // חשיפת הקלפים
+  summary:  { power:'on'  },   // עמוד הסיכום
+  reset:    { power:'off' },   // חזרה למסך הפתיחה
+};
+function holoSend(path, body){
+  try{
+    const ctl=('AbortController' in window)?new AbortController():null;
+    if(ctl) setTimeout(()=>{try{ctl.abort();}catch(e){}},1500);
+    fetch(HOLO_BRIDGE+path,{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body||{}), signal:ctl?ctl.signal:undefined
+    }).catch(()=>{});
+  }catch(e){/* אין גשר — ממשיכים כרגיל */}
+}
+/* מפעיל "רגע". opts אופציונלי לדריסה (למשל holoCue('identify',{name:State.name})). */
+function holoCue(cue, opts){
+  const a = Object.assign({}, HOLO_CUES[cue]||{}, opts||{});
+  if(a.name!==undefined && a.name!==null){ holoSend('/play',{name:a.name}); return; }
+  if(a.video!==undefined && a.video!==null){ holoSend('/play',{video:a.video}); return; }
+  if(a.ascii){ holoSend('/command',{ascii:a.ascii}); return; }
+  if(a.power){ holoSend('/power',{on:a.power==='on'}); return; }
+}
+/* תאימות לאחור */
+function holoPlay(name){ holoCue('identify', name?{name:name}:undefined); }
+
+async function startSubject(){
+  show('screen-subject'); setOrb(document.getElementById('subject-orb')); renderSteps();
+  const greet = State.name ? (State.name + '.') : 'I see you.';
+  await speak(greet + ' Now tell me — what won\'t let you rest?');
+  listen({ waveEl:document.getElementById('subject-wave'), heardEl:document.getElementById('subject-heard'), onResult:t=>chooseSubject(t) });
+}
+
+/* =========================================================
+   STEP 2 : הנושא
+   ========================================================= */
+document.querySelectorAll('#subject-options [data-subject]').forEach(btn=>{
+  btn.addEventListener('click',()=>{ stopListening(); chooseSubject(btn.dataset.subject); });
+});
+async function chooseSubject(text){
+  State.subject=text; document.getElementById('subject-heard').textContent=text; stopListening();
+  await wait(450); startQuestions();
+}
+
+/* =========================================================
+   STEP 3 : שאלות תחושת בטן
+   ========================================================= */
+const QUESTIONS = [
+  { id:'act', en:'If you had to act right now, what would you do?',
+    say:'If you had to act right now — what would you do?',
+    opts:[{v:'buy',en:'Buy'},{v:'sell',en:'Sell'},{v:'wait',en:'Wait'}] },
+  { id:'hope', en:'What do you hope happens?',
+    say:'What do you hope will happen?',
+    opts:[{v:'sharp',en:'A sharp rise'},{v:'gentle',en:'A gentle rise'},{v:'nocare',en:"I don't care"}] },
+  { id:'fear', en:'What are you afraid of?',
+    say:'What are you afraid of?',
+    opts:[{v:'lose',en:'Losing money'},{v:'miss',en:'Missing out'},{v:'wrong',en:'Being wrong'}] },
+  { id:'confidence', type:'slider', en:'How sure are you of yourself?',
+    say:'And how sure are you of yourself?' }
+];
+let qIndex=0;
+async function startQuestions(){
+  qIndex=0; show('screen-questions'); setOrb(document.getElementById('question-orb')); renderSteps();
+  await renderQuestion();
+}
+async function renderQuestion(){
+  const q=QUESTIONS[qIndex];
+  document.getElementById('q-en').textContent=q.en;
+  const optWrap=document.getElementById('q-options'), slider=document.getElementById('q-slider');
+  optWrap.innerHTML=''; 
+  if(q.type==='slider'){
+    optWrap.style.display='none'; slider.style.display='flex';
+  } else {
+    slider.style.display='none'; optWrap.style.display='flex';
+    q.opts.forEach(o=>{
+      const b=document.createElement('button'); b.className='btn';
+      b.textContent=o.en;
+      b.addEventListener('click',()=>answerQuestion(q.id,o.v));
+      optWrap.appendChild(b);
+    });
+  }
+  await speak(q.say);
+}
+async function answerQuestion(id,val){ State[id]=val; await wait(250); next(); }
+function next(){ qIndex++; if(qIndex<QUESTIONS.length) renderQuestion(); else startBody(); }
+
+const slI=document.getElementById('q-slider-input'), slV=document.getElementById('q-slider-val');
+slI.addEventListener('input',()=>{ slV.textContent=slI.value; });
+document.getElementById('q-slider-next').addEventListener('click',()=>{ State.confidence=+slI.value; next(); });
+
+/* =========================================================
+   STEP 4 : סריקה ביומטרית — המצלמה ממש בוחנת את הפנים
+   זיהוי פנים אמיתי (MediaPipe FaceLandmarker): נקודות, blendshapes,
+   זווית ראש. מסגרות מעקב מתביתות על העיניים/אף/פה, ונתונים חיים בצדדים.
+   אם אין מצלמה / אין רשת — נופלים לסימולציה תיאטרלית.
+   ========================================================= */
+const AURA_COLORS = [
+  {n:'CRIMSON', hex:'#ff5c5c', m:'a hunger that burns'},
+  {n:'AMBER',   hex:'#ffb347', m:'restless ambition'},
+  {n:'EMERALD', hex:'#2ee66b', m:'a need to grow'},
+  {n:'AZURE',   hex:'#4fb3ff', m:'a search for calm'},
+  {n:'VIOLET',  hex:'#b07cff', m:'a hidden doubt'}
+];
+
+let faceLandmarker=null, faceLoadPromise=null;
+async function loadFaceLandmarker(){
+  if(faceLandmarker) return faceLandmarker;
+  if(faceLoadPromise) return faceLoadPromise;
+  faceLoadPromise=(async()=>{
+    const V='https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+    const vision=await import(V+'/vision_bundle.mjs');
+    const fileset=await vision.FilesetResolver.forVisionTasks(V+'/wasm');
+    const opts={ baseOptions:{ modelAssetPath:'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task', delegate:'GPU' },
+      runningMode:'VIDEO', numFaces:1, outputFaceBlendshapes:true, outputFacialTransformationMatrixes:true };
+    try{ faceLandmarker=await vision.FaceLandmarker.createFromOptions(fileset,opts); }
+    catch(e){ opts.baseOptions.delegate='CPU'; faceLandmarker=await vision.FaceLandmarker.createFromOptions(fileset,opts); }
+    return faceLandmarker;
+  })();
+  return faceLoadPromise;
+}
+
+let auraReset = ()=>{};
+async function startBody(){
+  show('screen-body'); setOrb(document.getElementById('body-orb')); renderSteps();
+  auraReset();
+  await speak('I will not read your hand. My cameras will read your face. Hold still — look into the lens — and begin the scan.');
+}
+
+(function biometricScan(){
+  const frame=document.getElementById('scan-frame');
+  const video=document.getElementById('aura-video');
+  const tcanvas=document.getElementById('track-canvas');
+  const tctx=tcanvas.getContext('2d');
+  const placeholder=document.getElementById('scan-placeholder');
+  const phLabel=document.getElementById('scan-ph-label');
+  const readout=document.getElementById('aura-readout');
+  const meter=document.getElementById('aura-meter-fill');
+  const startBtn=document.getElementById('btn-scan-start');
+  const hud=document.getElementById('hud-top');
+  const colL=document.getElementById('data-left'), colR=document.getElementById('data-right');
+  const colL2=document.getElementById('data-left2'), colR2=document.getElementById('data-right2');
+  let stream=null, raf=null, running=false, M=null;
+
+  function stopStream(){ if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; } video.srcObject=null; }
+
+  // צילום פריים מהמצלמה לדף הסיכום (עם/בלי שכבת הסריקה), ממוראה בדיוק כמו בתצוגה
+  function grabShot(withOverlay){
+    try{
+      if(!video.videoWidth) return null;
+      const W=frame.clientWidth||480, H=frame.clientHeight||360;
+      const out=document.createElement('canvas'); out.width=W; out.height=H;
+      const o=out.getContext('2d');
+      o.fillStyle='#02110a'; o.fillRect(0,0,W,H);
+      const vw=video.videoWidth, vh=video.videoHeight, scale=Math.max(W/vw,H/vh);
+      const dW=vw*scale, dH=vh*scale, oX=(W-dW)/2, oY=(H-dH)/2;
+      o.save(); o.translate(W,0); o.scale(-1,1); o.drawImage(video,oX,oY,dW,dH); o.restore();
+      if(withOverlay && tcanvas.width) o.drawImage(tcanvas,0,0,W,H);
+      return out.toDataURL('image/jpeg',0.85);
+    }catch(e){ return null; }
+  }
+
+  function metric(col,key,label){
+    const root=document.createElement('div'); root.className='metric';
+    const k=document.createElement('div'); k.className='k'; k.textContent=label;
+    const v=document.createElement('div'); v.className='v'; v.textContent='—';
+    const bar=document.createElement('div'); bar.className='bar'; const fill=document.createElement('i'); bar.appendChild(fill);
+    root.appendChild(k); root.appendChild(v); root.appendChild(bar); col.appendChild(root);
+    return { root, v, fill, set(val,pct,cls){ this.v.textContent=val; if(pct!=null)this.fill.style.width=Math.max(0,Math.min(100,pct))+'%'; this.v.className='v'+(cls?' '+cls:''); }, on(){ this.root.classList.add('on'); } };
+  }
+  function buildMetrics(){
+    colL.innerHTML=''; colR.innerHTML=''; colL2.innerHTML=''; colR2.innerHTML='';
+    colL.className='data-col'; colL2.className='data-col';
+    colR.className='data-col right'; colR2.className='data-col right';
+    M={
+      // עמודה פנימית שמאל (צמודה לתמונה)
+      subject: metric(colL,'subject','SUBJECT LOCK'),
+      conf:    metric(colL,'conf','FACE CONFIDENCE'),
+      tilt:    metric(colL,'tilt','HEAD TILT'),
+      gaze:    metric(colL,'gaze','GAZE / YAW'),
+      tremor:  metric(colL,'tremor','MICRO-TREMOR'),
+      // עמודה חיצונית שמאל
+      smile:   metric(colL2,'smile','SMILE AMPLITUDE'),
+      ocdist:  metric(colL2,'ocdist','OCULAR DISTORTION'),
+      cheek:   metric(colL2,'cheek','CHEEK TENSION'),
+      pupil:   metric(colL2,'pupil','PUPIL DILATION'),
+      symm:    metric(colL2,'symm','FACIAL SYMMETRY'),
+      blinkLat:metric(colL2,'blinkLat','BLINK LATENCY'),
+      // עמודה פנימית ימין (צמודה לתמונה)
+      eyes:    metric(colR,'eyes','OCULAR APERTURE'),
+      mouth:   metric(colR,'mouth','VOCAL APERTURE'),
+      brow:    metric(colR,'brow','BROW TENSION'),
+      expr:    metric(colR,'expr','EXPRESSION'),
+      blinks:  metric(colR,'blinks','BLINK COUNT'),
+      // עמודה חיצונית ימין
+      nose:    metric(colR2,'nose','NOSTRIL FLARE'),
+      jawd:    metric(colR2,'jawd','JAW DRIFT'),
+      browasym:metric(colR2,'browasym','BROW ASYMMETRY'),
+      leak:    metric(colR2,'leak','MICRO-EXPR LEAK'),
+      eyecon:  metric(colR2,'eyecon','EYE CONTACT'),
+      decep:   metric(colR2,'decep','DECEPTION INDEX')
+    };
+  }
+
+  auraReset=function(){
+    running=false; scanComplete=false; cancelAnimationFrame(raf); stopStream();
+    frame.classList.remove('scanning');
+    video.style.display='none'; tcanvas.style.display='none';
+    placeholder.style.display='flex'; phLabel.textContent='NO SIGNAL';
+    readout.textContent='AWAITING SCAN';
+    meter.style.width='0%'; meter.style.background='var(--green)';
+    hud.innerHTML=''; buildMetrics();
+    const sa=document.getElementById('scan-analysis'); if(sa) sa.style.display='none';
+    startBtn.style.display=''; startBtn.disabled=false;
+    startBtn.classList.remove('await-continue');
+    startBtn.innerHTML='BEGIN SCAN';
+  };
+
+  let scanComplete=false;
+  startBtn.addEventListener('click', ()=>{ if(scanComplete) revealRitual(); else runScan(); });
+
+  // ----- מיפוי נקודה מנורמלת → פיקסל תצוגה (object-fit:cover + מראה) -----
+  let frameW=0, frameH=0, ox=0, oy=0, dw=0, dh=0;
+  function computeCover(){
+    frameW=frame.clientWidth; frameH=frame.clientHeight;
+    const vw=video.videoWidth||4, vh=video.videoHeight||3;
+    const scale=Math.max(frameW/vw, frameH/vh);
+    dw=vw*scale; dh=vh*scale; ox=(frameW-dw)/2; oy=(frameH-dh)/2;
+    const dpr=Math.min(2, window.devicePixelRatio||1);
+    tcanvas.width=frameW*dpr; tcanvas.height=frameH*dpr; tctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  function mp(lm){ return { x: frameW-(ox+lm.x*dw), y: oy+lm.y*dh }; } // מראה על ציר X
+  function easeOut(t){ return 1-Math.pow(1-t,3); }
+
+  // מצלמות פזורות בחלל המסגרת, כל אחת מכוונת לנקודה בפנים
+  const VOID_CAMS=[
+    {x:0.10,y:0.10, t:33,  at:0,    label:'CAM_01'},
+    {x:0.90,y:0.10, t:263, at:200,  label:'CAM_02'},
+    {x:0.04,y:0.38, t:61,  at:400,  label:'CAM_03'},
+    {x:0.96,y:0.38, t:291, at:600,  label:'CAM_04'},
+    {x:0.50,y:0.04, t:10,  at:800,  label:'CAM_05'},
+    {x:0.13,y:0.93, t:152, at:1000, label:'CAM_06'},
+    {x:0.87,y:0.93, t:1,   at:1200, label:'CAM_07'},
+    {x:0.02,y:0.66, t:50,  at:1400, label:'CAM_08'},
+    {x:0.98,y:0.66, t:280, at:1600, label:'CAM_09'},
+    {x:0.30,y:0.02, t:105, at:1800, label:'CAM_10'},
+    {x:0.70,y:0.02, t:334, at:2000, label:'CAM_11'},
+    {x:0.50,y:0.97, t:13,  at:2200, label:'CAM_12'}
+  ];
+
+  function drawCamera(cx,cy,s,t,label){
+    const a=0.55*t+0.12;
+    tctx.lineWidth=1; tctx.strokeStyle='#2ee66b'; tctx.globalAlpha=a;
+    tctx.strokeRect(cx-s, cy-s*0.72, s*2, s*1.44);          // גוף מצלמה שקוף
+    tctx.beginPath(); tctx.arc(cx,cy, s*0.42, 0, Math.PI*2); tctx.stroke();   // עדשה
+    tctx.globalAlpha=0.85*t; tctx.fillStyle='#2ee66b';
+    tctx.beginPath(); tctx.arc(cx,cy, 1.5, 0, Math.PI*2); tctx.fill();
+    if(t>0.55){ tctx.globalAlpha=0.6; tctx.font='8px "Share Tech Mono", monospace'; tctx.fillText(label, cx-s, cy-s*0.72-3); }
+    tctx.globalAlpha=1;
+  }
+
+  function drawCameraNet(lms, since){
+    const pts=[];
+    VOID_CAMS.forEach(cam=>{
+      if(since<cam.at) return;
+      const t=easeOut(Math.min(1,(since-cam.at)/520));
+      const camx=cam.x*frameW, camy=cam.y*frameH;
+      const tp=mp(lms[cam.t]); pts.push(tp);
+      // קו דק מהמצלמה אל הפנים (נמתח פנימה)
+      const ex=camx+(tp.x-camx)*t, ey=camy+(tp.y-camy)*t;
+      tctx.globalAlpha=0.30*t; tctx.strokeStyle='#2ee66b'; tctx.lineWidth=1;
+      tctx.beginPath(); tctx.moveTo(camx,camy); tctx.lineTo(ex,ey); tctx.stroke();
+      if(t>0.8){ tctx.globalAlpha=0.7; tctx.strokeRect(tp.x-2.5, tp.y-2.5, 5, 5); }  // נקודת מטרה
+      tctx.globalAlpha=1;
+      drawCamera(camx, camy, 15, t, cam.label);
+    });
+    // רשת קווים דקה בין נקודות המטרה — "קווים בחלל"
+    tctx.globalAlpha=0.10; tctx.strokeStyle='#2ee66b'; tctx.lineWidth=1;
+    for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++){
+      const d=Math.hypot(pts[i].x-pts[j].x, pts[i].y-pts[j].y);
+      if(d<frameW*0.45){ tctx.beginPath(); tctx.moveTo(pts[i].x,pts[i].y); tctx.lineTo(pts[j].x,pts[j].y); tctx.stroke(); }
+    }
+    tctx.globalAlpha=1;
+  }
+
+  function revealMetrics(since){
+    M.subject.on(); M.conf.on();
+    if(since>=400){ M.tilt.on(); M.gaze.on(); }
+    if(since>=800){ M.eyes.on(); M.smile.on(); }
+    if(since>=1200){ M.mouth.on(); M.ocdist.on(); }
+    if(since>=1600){ M.brow.on(); M.expr.on(); M.cheek.on(); }
+    if(since>=2000){ M.tremor.on(); M.blinks.on(); M.pupil.on(); M.nose.on(); }
+    if(since>=2400){ M.jawd.on(); M.browasym.on(); M.blinkLat.on(); }
+    if(since>=2800){ M.symm.on(); M.leak.on(); M.eyecon.on(); }
+    if(since>=3200) M.decep.on();
+  }
+
+  function bsMap(cats){ const m={}; if(cats) for(const c of cats) m[c.categoryName]=c.score; return m; }
+
+  async function runScan(){
+    if(running) return; running=true;
+    startBtn.disabled=true; startBtn.style.display='none';
+    readout.textContent='INITIALIZING OPTICS…';
+
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ return cameraError('NO CAMERA API · browser unsupported / not secure'); }
+
+    let haveCam=false;
+    try{
+      stream=await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user', width:{ideal:640}, height:{ideal:480} }, audio:false });
+      video.srcObject=stream; video.style.display='block'; placeholder.style.display='none';
+      await new Promise(res=>{ if(video.readyState>=1)res(); else video.onloadedmetadata=()=>res(); });
+      await video.play().catch(()=>{});
+      haveCam=true;
+    }catch(e){
+      const denied=/NotAllowed|Permission|Security/i.test(e&&(e.name+e.message));
+      return cameraError(denied ? 'CAMERA BLOCKED · allow camera access (camera icon in the address bar) and try again'
+                                : 'NO CAMERA FOUND · no available camera detected');
+    }
+
+    let model=null;
+    try{ readout.textContent='LOADING NEURAL MESH…'; model=await loadFaceLandmarker(); }catch(e){ model=null; }
+
+    if(!model){ return camBasicScan(); } // מצלמה עובדת אך מנוע הזיהוי לא נטען (אין רשת?)
+
+    computeCover();
+    const onResize=()=>computeCover(); window.addEventListener('resize',onResize);
+    tcanvas.style.display='block'; frame.classList.add('scanning');
+    readout.textContent='SCANNING SUBJECT…';
+
+    const SCAN_MS=9000, t0=performance.now();
+    let lastTs=0, lockStart=0, faceSeen=0;
+    let frames=0, smileSum=0, browSum=0, jawSum=0, blinkSum=0, yawSum=0, tiltSum=0, dispSum=0, dispN=0;
+    let blinkCount=0, blinking=false, lastNose=null;
+    let confDisp=0;
+    let blinkLatMs=null, contactFrames=0;   // Blink Latency + Eye Contact Ratio
+
+    await new Promise(resolve=>{
+      function loop(){
+        if(!running){ resolve(); return; }
+        const now=performance.now(), p=Math.min(1,(now-t0)/SCAN_MS);
+        meter.style.width=Math.round(p*100)+'%';
+        let res=null;
+        if(video.videoWidth){
+          let ts=now; if(ts<=lastTs) ts=lastTs+1; lastTs=ts;
+          try{ res=model.detectForVideo(video, ts); }catch(e){}
+        }
+        tctx.clearRect(0,0,frameW,frameH);
+        const recT=((now-t0)/1000); const mm=String(Math.floor(recT/60)).padStart(2,'0'), ss=String(Math.floor(recT%60)).padStart(2,'0');
+
+        if(res && res.faceLandmarks && res.faceLandmarks.length){
+          const lms=res.faceLandmarks[0];
+          const bs=bsMap(res.faceBlendshapes && res.faceBlendshapes[0] && res.faceBlendshapes[0].categories);
+          if(!lockStart) lockStart=now;
+          faceSeen++;
+          if(!State.mainShot && faceSeen===8) State.mainShot=grabShot(false); // דיוקן נקי
+
+          // רשת מצלמות שקופות בחלל + קווים דקים אל הפנים
+          const since=now-lockStart;
+          revealMetrics(since);
+          drawCameraNet(lms, since);
+
+          // ----- חישובי נתונים אמיתיים -----
+          const eyeL=mp(lms[33]), eyeR=mp(lms[263]), nose=mp(lms[1]);
+          const fw=Math.hypot(eyeR.x-eyeL.x, eyeR.y-eyeL.y)||1;
+          const roll=Math.atan2(eyeR.y-eyeL.y, eyeR.x-eyeL.x)*180/Math.PI;
+          const eyeMidX=(eyeL.x+eyeR.x)/2;
+          const yaw=((nose.x-eyeMidX)/fw)*90;
+          const blinkL=bs['eyeBlinkLeft']||0, blinkR=bs['eyeBlinkRight']||0, blink=(blinkL+blinkR)/2;
+          const jaw=bs['jawOpen']||0;
+          const smile=((bs['mouthSmileLeft']||0)+(bs['mouthSmileRight']||0))/2;
+          const brow=((bs['browDownLeft']||0)+(bs['browDownRight']||0))/2;
+          // --- מדדים נוספים מרשת הבעות הפנים ---
+          const squintL=bs['eyeSquintLeft']||0, squintR=bs['eyeSquintRight']||0;
+          const wideL=bs['eyeWideLeft']||0, wideR=bs['eyeWideRight']||0;
+          const cheek=((bs['cheekSquintLeft']||0)+(bs['cheekSquintRight']||0))/2;
+          const sneer=((bs['noseSneerLeft']||0)+(bs['noseSneerRight']||0))/2;
+          const jawL=bs['jawLeft']||0, jawR=bs['jawRight']||0;
+          const browOutL=bs['browOuterUpLeft']||0, browOutR=bs['browOuterUpRight']||0;
+          const press=((bs['mouthPressLeft']||0)+(bs['mouthPressRight']||0))/2;
+          const smileL=bs['mouthSmileLeft']||0, smileR=bs['mouthSmileRight']||0;
+          const ocDist=Math.min(100,(Math.abs(blinkL-blinkR)+Math.abs(squintL-squintR))*140);   // עיוות/אי-סימטריה בעיניים
+          const pupil=((wideL+wideR)/2)*100;                                                     // "פתיחת אישונים"
+          const browAsym=Math.abs(browOutL-browOutR)*100;
+          const jawDrift=(jawR-jawL)*100;
+          const symm=Math.max(0,100-((Math.abs(blinkL-blinkR)+Math.abs(smileL-smileR)+Math.abs(browOutL-browOutR))*90));
+          const leak=Math.min(100,(press*60+squintL*20+squintR*20+Math.abs(yaw)*0.8));           // "דליפת מיקרו-הבעה"
+          const decep=Math.min(100,(leak*0.5+ocDist*0.25+brow*40+(blinkCount*3)));               // מדד "הונאה" מורכב
+
+          // מצמוץ + זמן תגובה למצמוץ הראשון (Blink Latency)
+          if(blink>0.55 && !blinking){ blinking=true; blinkCount++; if(blinkLatMs===null) blinkLatMs=Math.round(now-t0); }
+          else if(blink<0.3 && blinking){ blinking=false; }
+          // רעד — תזוזת קצה האף מנורמלת
+          if(lastNose){ const d=Math.hypot(nose.x-lastNose.x, nose.y-lastNose.y)/fw; dispSum+=d; dispN++; }
+          lastNose=nose;
+          // יחס קשר עין — פריימים שבהם המבט נעול על העדשה
+          if(Math.abs(yaw)<15) contactFrames++;
+
+          frames++; smileSum+=smile; browSum+=brow; jawSum+=jaw; blinkSum+=blink; yawSum+=Math.abs(yaw); tiltSum+=Math.abs(roll);
+          confDisp=Math.min(98, confDisp+ (98-confDisp)*0.08 + 1.5);
+
+          // עדכון פאנלים
+          const openPct=Math.round((1-blink)*100);
+          M.subject.set('LOCKED', null, ''); 
+          M.conf.set(confDisp.toFixed(1)+'%', confDisp);
+          M.tilt.set((roll>=0?'+':'')+roll.toFixed(1)+'°', Math.min(100,Math.abs(roll)*4));
+          M.gaze.set((yaw>=0?'+':'')+yaw.toFixed(1)+'°', Math.min(100,Math.abs(yaw)*2.2), Math.abs(yaw)>20?'amber':'');
+          const trem=dispN?Math.min(100,Math.round((dispSum/dispN)*2500)):0;
+          M.tremor.set(trem+' µ', trem, trem>55?'sell':'');
+          M.eyes.set(openPct+'%', openPct, openPct<40?'amber':'');
+          M.mouth.set(Math.round(jaw*100)+'%', jaw*100);
+          M.brow.set(Math.round(brow*100)+'%', brow*100, brow>0.4?'sell':'');
+          M.expr.set(exprName(smile,brow,jaw,blink).toUpperCase(), null, 'amber');
+          M.blinks.set(String(blinkCount), Math.min(100,blinkCount*12));
+          M.smile.set(Math.round(smile*100)+'%', smile*100, smile>0.3?'amber':'');
+          M.ocdist.set(Math.round(ocDist)+' Δ', ocDist, ocDist>45?'sell':'');
+          M.cheek.set(Math.round(cheek*100)+'%', cheek*100);
+          M.pupil.set(Math.round(pupil)+'%', pupil, pupil>55?'amber':'');
+          M.symm.set(Math.round(symm)+'%', symm, symm<60?'sell':'');
+          M.nose.set(Math.round(sneer*100)+'%', sneer*100, sneer>0.4?'amber':'');
+          M.jawd.set((jawDrift>=0?'+':'')+jawDrift.toFixed(0)+' µ', Math.min(100,Math.abs(jawDrift)*2));
+          M.browasym.set(Math.round(browAsym)+' Δ', Math.min(100,browAsym*3), browAsym>25?'amber':'');
+          M.leak.set(Math.round(leak)+'%', leak, leak>50?'sell':'');
+          M.blinkLat.set(blinkLatMs===null?'WAIT…':blinkLatMs+' ms', blinkLatMs===null?0:Math.min(100,blinkLatMs/40), blinkLatMs!==null&&blinkLatMs<900?'amber':'');
+          const contactPct=frames?Math.round(contactFrames/frames*100):0;
+          M.eyecon.set(contactPct+'%', contactPct, contactPct<50?'sell':'');
+          M.decep.set(Math.round(decep)+'%', decep, decep>55?'sell':(decep>35?'amber':''));
+
+          hud.innerHTML='<span>CAM ARRAY · 05 ONLINE · TARGET LOCKED</span><span class="rec">REC '+mm+':'+ss+'</span>';
+        } else {
+          M.subject.set('SEARCHING…', null, 'amber'); M.subject.on();
+          hud.innerHTML='<span>CAM ARRAY · ACQUIRING…</span><span class="rec">REC '+mm+':'+ss+'</span>';
+        }
+
+        if(p<1) raf=requestAnimationFrame(loop); else resolve();
+      }
+      raf=requestAnimationFrame(loop);
+    });
+    window.removeEventListener('resize',onResize);
+    if(!running) return;
+    State.scanShot=grabShot(true); // דיוקן עם שכבת הסריקה הביומטרית
+    if(!State.mainShot) State.mainShot=grabShot(false);
+
+    if(frames<5){ return theaterFallback(); } // לא ננעל על פנים
+
+    const avgSmile=smileSum/frames, avgBrow=browSum/frames, avgJaw=jawSum/frames, avgBlink=blinkSum/frames, avgYaw=yawSum/frames;
+    const trem=dispN?Math.min(100,Math.round((dispSum/dispN)*2500)):20;
+    const stillness=Math.max(0,Math.min(100,100-trem));
+    const color=colorFrom(avgSmile,avgBrow,avgJaw,avgBlink,avgYaw,stillness);
+    State.gazeAway=(avgYaw>18 || avgBlink>0.4);
+    State.blinks=blinkCount;
+    State.blinkLatency=blinkLatMs;                                   // ms עד המצמוץ הראשון (null = לא מצמץ)
+    State.eyeContact=frames?Math.round(contactFrames/frames*100):null;// אחוז קשר עין
+    State.expression=exprName(avgSmile,avgBrow,avgJaw,avgBlink);
+    finishScan(stillness, 100-stillness, color, true);
+  }
+
+  function exprName(smile,brow,jaw,blink){
+    if(jaw>0.4) return 'Astonished';
+    if(smile>0.32) return 'Composed';
+    if(brow>0.32) return 'Tense';
+    if(blink>0.5) return 'Evasive';
+    return 'Guarded';
+  }
+  function colorFrom(smile,brow,jaw,blink,yaw,stillness){
+    if(brow>0.3) return AURA_COLORS[0];          // CRIMSON — מתח/כעס
+    if(jaw>0.35) return AURA_COLORS[1];           // AMBER — חוסר מנוחה
+    if(smile>0.3) return AURA_COLORS[2];          // EMERALD — צמיחה
+    if(blink>0.4 || yaw>20) return AURA_COLORS[4];// VIOLET — ספק/חמקנות
+    if(stillness>70) return AURA_COLORS[3];        // AZURE — שקט
+    return AURA_COLORS[1];
+  }
+
+  function cameraError(msg){
+    running=false; cancelAnimationFrame(raf); stopStream();
+    frame.classList.remove('scanning');
+    video.style.display='none'; tcanvas.style.display='none';
+    placeholder.style.display='flex'; phLabel.textContent='CAMERA BLOCKED';
+    readout.innerHTML=msg;
+    meter.style.width='0%';
+    startBtn.style.display=''; startBtn.disabled=false;
+    startBtn.innerHTML='RETRY SCAN';
+    hud.innerHTML='<span>NO SIGNAL</span><span class="rec">REC ✕</span>';
+  }
+
+  // מצלמה עובדת אך אין מנוע זיהוי (למשל בלי אינטרנט) — סריקה ויזואלית עם המצלמה הגלויה
+  async function camBasicScan(){
+    if(!running) return;
+    frame.classList.add('scanning'); tcanvas.style.display='none';
+    readout.textContent='SCANNING (BASIC OPTICS)…';
+    const t0=performance.now(); const SCAN_MS=5000;
+    await new Promise(resolve=>{ (function l(){ if(!running){resolve();return;} const p=Math.min(1,(performance.now()-t0)/SCAN_MS); meter.style.width=Math.round(p*100)+'%';
+      hud.innerHTML='<span>CAM 01 · LIVE</span><span class="rec">REC</span>'; if(p<1)raf=requestAnimationFrame(l); else resolve(); })(); });
+    if(!running) return;
+    if(!State.mainShot) State.mainShot=grabShot(false);
+    if(!State.scanShot) State.scanShot=grabShot(false);
+    const turbulence=Math.round(25+Math.random()*45), stillness=100-turbulence;
+    const color=AURA_COLORS[Math.floor(Math.random()*AURA_COLORS.length)];
+    State.gazeAway=false; State.blinks=Math.floor(Math.random()*6); State.expression='Guarded';
+    State.blinkLatency=800+Math.floor(Math.random()*2600); State.eyeContact=45+Math.floor(Math.random()*45);
+    finishScan(stillness, turbulence, color, false);
+  }
+
+  async function theaterFallback(){
+    if(!running) return;
+    video.style.display='none'; tcanvas.style.display='none'; placeholder.style.display='flex'; phLabel.textContent='SCANNING ENERGY';
+    frame.classList.add('scanning'); readout.textContent='SCANNING ENERGY…';
+    const t0=performance.now(); const SCAN_MS=4200;
+    await new Promise(resolve=>{ (function l(){ if(!running){resolve();return;} const p=Math.min(1,(performance.now()-t0)/SCAN_MS); meter.style.width=Math.round(p*100)+'%'; if(p<1)raf=requestAnimationFrame(l); else resolve(); })(); });
+    if(!running) return;
+    const turbulence=Math.round(30+Math.random()*50), stillness=100-turbulence;
+    const color=AURA_COLORS[Math.floor(Math.random()*AURA_COLORS.length)];
+    State.gazeAway=false; State.blinks=Math.floor(Math.random()*6); State.expression='Guarded';
+    State.blinkLatency=800+Math.floor(Math.random()*2600); State.eyeContact=45+Math.floor(Math.random()*45);
+    finishScan(stillness, turbulence, color, false);
+  }
+
+  async function finishScan(stillness, turbulence, color, real){
+    running=false; cancelAnimationFrame(raf); frame.classList.remove('scanning');
+    State.steadiness=stillness; State.auraTurbulence=turbulence; State.auraColor=color;
+    meter.style.width='100%'; meter.style.background=color.hex;
+    const expr=State.expression?(' · '+State.expression.toUpperCase()):'';
+    readout.innerHTML='PROFILE :: <span style="color:'+color.hex+'">'+color.n+'</span>'+expr+' &nbsp;|&nbsp; STILLNESS '+stillness+'%';
+    hud.innerHTML='<span>CAPTURE COMPLETE</span><span class="rec">REC ■</span>';
+    stopStream();
+    // אין מעבר אוטומטי — מקפיאים על מסך התוצאות מיד, וממתינים ללחיצה על "המשך".
+    // הכפתור מופיע לפני הקריינות כדי שאפשר יהיה לקרוא את הסריקה בלי שום מעבר אוטומטי.
+    scanComplete=true;
+    readout.innerHTML+='<br><span style="color:var(--amber)">▼ READ YOUR RESULTS ABOVE · press CONTINUE when ready</span>';
+    startBtn.style.display=''; startBtn.disabled=false;
+    startBtn.classList.add('await-continue');
+    startBtn.innerHTML='SCAN COMPLETE · CONTINUE';
+    // הודעת אזהרה: ניתוח מפורט של סריקת הפנים
+    showScanAnalysis(real);
+    if(real){
+      speak('The scan is complete. Read my analysis of your face carefully — it is a warning before you trade.');
+    } else {
+      speak('The reading is complete. Read my analysis carefully — it is a warning before you trade.');
+    }
+  }
+})();
+
+/* =========================================================
+   הודעת אזהרה — פירוש הניתוח של סריקת הפנים
+   בונה טקסט דינמי מתוך המדדים שהמכונה "מדדה": יציבות, הבעה,
+   הילה, מצמוץ ומבט. מוצג כחלון אזהרה מעל מסך הסריקה.
+   ========================================================= */
+// ציון "בטחון עצמי" נגזר ממדדי הסריקה — כל אדם מקבל מספר משלו
+function scanConfidenceScore(){
+  const still = State.steadiness ?? 50;
+  const turb  = State.auraTurbulence ?? 50;
+  const expr  = State.expression || 'Guarded';
+  const blinks= State.blinks ?? 0;
+  const gaze  = State.gazeAway;
+  let cs = 50;
+  cs += (still-50)*0.60;                 // כמה שקט ישב
+  cs -= (turb-50)*0.40;                  // כמה סערה
+  cs -= Math.min(blinks,12)*2.5;         // מצמוץ = עצבים
+  if(gaze) cs -= 12;                      // מבט שנמלט
+  cs += ({Composed:14, Guarded:-2, Tense:-14, Astonished:-6, Evasive:-16}[expr]||0);
+  return Math.round(Math.max(3, Math.min(97, cs)));
+}
+
+function buildScanAnalysis(){
+  const still = State.steadiness ?? 50;
+  const expr  = State.expression || 'Guarded';
+  const blinks= State.blinks ?? 0;
+  const gaze  = State.gazeAway;
+  const said  = State.confidence ?? 50;
+  const cs    = scanConfidenceScore();
+  const lines = [];
+
+  // 1) השורה התחתונה — בטוח בעצמו או לא
+  if(cs>=66)
+    lines.push({ tag:'SELF-BELIEF '+cs+'%', en:'Bottom line: you look sure of yourself.',
+      he:'שורה תחתונה: אתה נראה בטוח בעצמך.' });
+  else if(cs>=45)
+    lines.push({ tag:'SELF-BELIEF '+cs+'%', en:'Bottom line: you look calm, but not fully decided yet.',
+      he:'שורה תחתונה: אתה נראה רגוע, אבל עדיין לא לגמרי החלטת.' });
+  else
+    lines.push({ tag:'SELF-BELIEF '+cs+'%', en:'Bottom line: you do not look sure of yourself.',
+      he:'שורה תחתונה: אתה לא נראה בטוח בעצמך.' });
+
+  // 2) מה שאמרת מול מה שראיתי
+  if(said>=65 && cs<50)
+    lines.push({ tag:'SAID vs SHOWN', en:'You told me you were very sure, but your face does not back that up.',
+      he:'אמרת לי שאתה מאוד בטוח, אבל הפנים שלך לא מאשרות את זה.' });
+  else if(said<40 && cs>60)
+    lines.push({ tag:'SAID vs SHOWN', en:'You said you were not sure, but you actually look steadier than you think.',
+      he:'אמרת שאתה לא בטוח, אבל בפועל אתה נראה יציב יותר ממה שאתה חושב.' });
+  else if(Math.abs(said-cs)<=12)
+    lines.push({ tag:'SAID vs SHOWN', en:'What you said and what your face showed match. You know where you stand.',
+      he:'מה שאמרת ומה שהפנים הראו מתאימים. אתה יודע איפה אתה עומד.' });
+
+  // 3) יציבות — פשוט
+  if(still>=70)
+    lines.push({ tag:'STILLNESS '+still+'%', en:'You sat very still. That looks like someone in control.',
+      he:'ישבת מאוד בשקט. זה נראה כמו מישהו בשליטה.' });
+  else if(still>=50)
+    lines.push({ tag:'STILLNESS '+still+'%', en:'You moved a little. Part of you is settled, part is still restless.',
+      he:'זזת קצת. חלק ממך רגוע, וחלק עדיין חסר מנוחה.' });
+  else
+    lines.push({ tag:'STILLNESS '+still+'%', en:'You kept moving around. That looks like someone who is still unsure.',
+      he:'זזת כל הזמן. זה נראה כמו מישהו שעדיין לא בטוח.' });
+
+  // 4) עצבים — מצמוץ / מבט / הבעה
+  if(blinks>=8)
+    lines.push({ tag:'BLINKS '+blinks, en:'You blinked a lot. That usually means you are nervous.',
+      he:'מצמצת הרבה. זה בדרך כלל אומר שאתה לחוץ.' });
+  else if(gaze)
+    lines.push({ tag:'EYE CONTACT', en:'You kept looking away from the camera. That is what people do when they are not comfortable.',
+      he:'המשכת להביט הצידה מהמצלמה. ככה אנשים מתנהגים כשלא נוח להם.' });
+  else if(expr==='Tense')
+    lines.push({ tag:'EXPRESSION', en:'Your face looked tense the whole time. You do not seem relaxed about this.',
+      he:'הפנים שלך נראו מתוחות כל הזמן. אתה לא נראה רגוע עם זה.' });
+  else if(expr==='Composed')
+    lines.push({ tag:'EXPRESSION', en:'Your face stayed calm and steady. You seem comfortable with yourself.',
+      he:'הפנים שלך נשארו רגועות ויציבות. אתה נראה בנוח עם עצמך.' });
+  else
+    lines.push({ tag:'EXPRESSION', en:'You kept your face closed. You did not give much away.',
+      he:'שמרת על פנים סגורות. לא חשפת הרבה.' });
+
+  return { cs, still, expr, blinks, gaze, said, lines };
+}
+
+function scanWarningVerdict(a){
+  if(a.cs>=66)
+    return { en:'You look confident. Just make sure it is real conviction, not the mood of the moment, before you put money down.',
+      he:'אתה נראה בטוח. רק תוודא שזו הכרעה אמיתית, ולא מצב הרוח של הרגע, לפני שאתה שם כסף.' };
+  if(a.cs<45)
+    return { en:'You do not look sure of yourself right now. This is not the state to risk real money in.',
+      he:'אתה לא נראה בטוח בעצמך כרגע. זה לא המצב לסכן בו כסף אמיתי.' };
+  return { en:'You are in the middle: calm, but not decided. Do not let anyone push you into a trade you have not chosen.',
+    he:'אתה באמצע: רגוע, אבל לא החלטי. אל תיתן לאף אחד לדחוף אותך לעסקה שלא בחרת בה.' };
+}
+
+function showScanAnalysis(real){
+  const a = buildScanAnalysis();
+  const overlay = document.getElementById('scan-analysis');
+  if(!overlay) return;
+  const nameTag = State.name ? ' · ' + State.name.toUpperCase() : '';
+  document.getElementById('sa-title').innerHTML = '⚠&nbsp; BIOMETRIC ANALYSIS'+nameTag+' &nbsp;⚠';
+  const profile = 'SELF-BELIEF '+a.cs+'% · '+a.expr.toUpperCase()+' · STILLNESS '+a.still+'%';
+  document.getElementById('sa-profile').textContent = 'PROFILE :: '+profile;
+  document.getElementById('sa-intro').innerHTML =
+    'The cameras did not read the market. They read <b>you</b>. Here, in plain words, is what I saw:'
+    + '<span class="he">המצלמות לא קראו את השוק. הן קראו אותך. הנה, במילים פשוטות, מה שראיתי:</span>';
+
+  const wrap = document.getElementById('sa-lines'); wrap.innerHTML='';
+  a.lines.forEach(l=>{
+    const row=document.createElement('div'); row.className='sa-line';
+    row.innerHTML = '<span class="tag">'+l.tag+' ›</span><span>'+l.en+'<span class="he">'+l.he+'</span></span>';
+    wrap.appendChild(row);
+  });
+
+  const v = scanWarningVerdict(a);
+  document.getElementById('sa-verdict').innerHTML = v.en + '<span class="he">'+v.he+'</span>';
+  overlay.style.display='flex';
+}
+
+document.getElementById('sa-close').addEventListener('click',()=>{
+  document.getElementById('scan-analysis').style.display='none';
+});
+document.getElementById('sa-continue').addEventListener('click',()=>{
+  document.getElementById('scan-analysis').style.display='none';
+  startVoice();
+});
+
+/* =========================================================
+   STEP 5 : מבחן קול · VOICE STRESS
+   המשתמש שר סולם (דו־רה־מי...). מזהים גובה צליל בזמן אמת
+   (autocorrelation), מודדים מנעד קול, יציבות ומד דציבלים.
+   ========================================================= */
+const SOLFEGE = [
+  {n:'DO',o:'low'},{n:'RE',o:''},{n:'MI',o:''},{n:'FA',o:''},
+  {n:'SOL',o:''},{n:'LA',o:''},{n:'SI',o:''},{n:'DO',o:'high'}
+];
+function buildVoiceScale(){
+  const wrap=document.getElementById('voice-scale'); if(!wrap) return;
+  wrap.innerHTML='';
+  SOLFEGE.forEach(s=>{
+    const d=document.createElement('div'); d.className='note';
+    d.innerHTML=s.n+(s.o?'<span class="oct">'+s.o+'</span>':'<span class="oct">·</span>');
+    wrap.appendChild(d);
+  });
+}
+function resetVoiceUI(){
+  buildVoiceScale();
+  document.getElementById('voice-note').textContent='—';
+  document.getElementById('voice-hz').textContent='0 Hz';
+  document.getElementById('db-fill').style.width='0%';
+  document.getElementById('db-peak').style.left='0%';
+  document.getElementById('db-value').textContent='-- dB';
+  document.getElementById('db-max').textContent='PEAK -- dB';
+  document.getElementById('voice-readout').textContent='AWAITING VOICE';
+  document.getElementById('voice-progress').style.width='0%';
+  const btn=document.getElementById('btn-voice-start');
+  btn.style.display=''; btn.disabled=false; btn.classList.remove('await-continue'); btn.innerHTML='START SINGING';
+  const ov=document.getElementById('voice-analysis'); if(ov) ov.style.display='none';
+}
+
+let voiceState={ running:false, stream:null, ctx:null, raf:null };
+async function startVoice(){
+  show('screen-voice'); setOrb(document.getElementById('voice-orb')); renderSteps();
+  resetVoiceUI();
+  await speak('Now sing the scale for me. Do, re, mi, fa, sol, la, si, do — rising. Press start when you are ready.');
+}
+
+function freqToNote(f){
+  if(!f||f<=0) return {name:'—',oct:''};
+  const midi=Math.round(69+12*Math.log2(f/440));
+  const names=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  return { name:names[((midi%12)+12)%12], oct:Math.floor(midi/12)-1 };
+}
+// זיהוי גובה צליל בשיטת autocorrelation (ACF2+)
+function autoCorrelate(buf, sampleRate){
+  const SIZE=buf.length; let rms=0;
+  for(let i=0;i<SIZE;i++){ rms+=buf[i]*buf[i]; }
+  rms=Math.sqrt(rms/SIZE);
+  if(rms<0.008) return -1;
+  let r1=0, r2=SIZE-1; const thres=0.2;
+  for(let i=0;i<SIZE/2;i++){ if(Math.abs(buf[i])<thres){ r1=i; break; } }
+  for(let i=1;i<SIZE/2;i++){ if(Math.abs(buf[SIZE-i])<thres){ r2=SIZE-i; break; } }
+  const b=buf.slice(r1,r2); const SZ=b.length;
+  if(SZ<8) return -1;
+  const c=new Array(SZ).fill(0);
+  for(let i=0;i<SZ;i++) for(let j=0;j<SZ-i;j++) c[i]+=b[j]*b[j+i];
+  let d=0; while(d<SZ-1 && c[d]>c[d+1]) d++;
+  let maxval=-1, maxpos=-1;
+  for(let i=d;i<SZ;i++){ if(c[i]>maxval){ maxval=c[i]; maxpos=i; } }
+  if(maxpos<=0) return -1;
+  let T0=maxpos;
+  const x1=c[T0-1]||0, x2=c[T0]||0, x3=c[T0+1]||0;
+  const a=(x1+x3-2*x2)/2, bb=(x3-x1)/2;
+  if(a) T0=T0-bb/(2*a);
+  const freq=sampleRate/T0;
+  return (freq>60 && freq<1200)?freq:-1;
+}
+
+function stopVoice(){
+  voiceState.running=false;
+  if(voiceState.raf) cancelAnimationFrame(voiceState.raf);
+  if(voiceState.stream){ voiceState.stream.getTracks().forEach(t=>t.stop()); voiceState.stream=null; }
+  if(voiceState.ctx){ try{ voiceState.ctx.close(); }catch(e){} voiceState.ctx=null; }
+}
+
+async function runVoice(){
+  if(voiceState.running) return;
+  const btn=document.getElementById('btn-voice-start');
+  const readout=document.getElementById('voice-readout');
+  const noteEl=document.getElementById('voice-note'), hzEl=document.getElementById('voice-hz');
+  const dbFill=document.getElementById('db-fill'), dbPeak=document.getElementById('db-peak');
+  const dbVal=document.getElementById('db-value'), dbMax=document.getElementById('db-max');
+  const prog=document.getElementById('voice-progress');
+  const scaleNotes=[...document.querySelectorAll('#voice-scale .note')];
+
+  btn.disabled=true; btn.style.display='none';
+  readout.textContent='OPENING MICROPHONE…';
+
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ return voiceFallback('NO MIC API · browser unsupported'); }
+  try{
+    voiceState.stream=await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false }, video:false });
+  }catch(e){
+    return voiceFallback('MIC BLOCKED · allow microphone access and try again');
+  }
+
+  const Ctx=window.AudioContext||window.webkitAudioContext;
+  voiceState.ctx=new Ctx();
+  try{ await voiceState.ctx.resume(); }catch(e){}
+  const src=voiceState.ctx.createMediaStreamSource(voiceState.stream);
+  const analyser=voiceState.ctx.createAnalyser(); analyser.fftSize=2048;
+  src.connect(analyser);
+  const buf=new Float32Array(analyser.fftSize);
+  const SR=voiceState.ctx.sampleRate;
+
+  voiceState.running=true;
+  readout.textContent='SINGING… let it rise';
+
+  const DUR=9000, t0=performance.now();
+  let minF=Infinity, maxF=0, peakDb=0;
+  let jitterSum=0, jitterN=0, lastSemi=null, voicedFrames=0;
+
+  await new Promise(resolve=>{
+    function loop(){
+      if(!voiceState.running){ resolve(); return; }
+      const now=performance.now(), p=Math.min(1,(now-t0)/DUR);
+      prog.style.width=Math.round(p*100)+'%';
+
+      analyser.getFloatTimeDomainData(buf);
+      let rms=0; for(let i=0;i<buf.length;i++) rms+=buf[i]*buf[i]; rms=Math.sqrt(rms/buf.length);
+      const dbfs=20*Math.log10(rms+1e-7);
+      const dbSPL=Math.max(0,Math.min(99,dbfs+90));       // מד דציבלים "SPL" נוח לקריאה
+      dbFill.style.width=dbSPL+'%';
+      dbVal.textContent=Math.round(dbSPL)+' dB';
+      if(dbSPL>peakDb){ peakDb=dbSPL; dbPeak.style.left=Math.min(99,dbSPL)+'%'; dbMax.textContent='PEAK '+Math.round(peakDb)+' dB'; }
+
+      const f=autoCorrelate(buf,SR);
+      if(f>0 && dbSPL>18){
+        voicedFrames++;
+        if(f<minF)minF=f; if(f>maxF)maxF=f;
+        const nn=freqToNote(f);
+        noteEl.textContent=nn.name; hzEl.textContent=Math.round(f)+' Hz';
+        const semi=12*Math.log2(f/440);
+        if(lastSemi!=null){ jitterSum+=Math.abs(semi-lastSemi); jitterN++; }
+        lastSemi=semi;
+        // סמן על הסולם לפי המיקום היחסי במנעד שנצפה עד כה
+        if(maxF>minF){
+          const idx=Math.max(0,Math.min(7,Math.floor((f-minF)/(maxF-minF)*8)));
+          scaleNotes.forEach((el,i)=>{ el.classList.toggle('active', i===idx); if(i<=idx) el.classList.add('hit'); });
+        }
+      } else {
+        noteEl.textContent='—'; hzEl.textContent=Math.round(dbSPL>18?0:0)+' Hz';
+        scaleNotes.forEach(el=>el.classList.remove('active'));
+      }
+
+      if(p<1) voiceState.raf=requestAnimationFrame(loop); else resolve();
+    }
+    voiceState.raf=requestAnimationFrame(loop);
+  });
+
+  stopVoice();
+  scaleNotes.forEach(el=>el.classList.remove('active'));
+
+  if(voicedFrames<8){ return voiceFallback('NO VOICE HEARD · try again, sing out loud'); }
+
+  const range = (minF!==Infinity && maxF>minF) ? 12*Math.log2(maxF/minF) : 0;   // מנעד בחצאי-טונים
+  const jitter = jitterN ? jitterSum/jitterN : 0;                                // רעד גובה ממוצע
+  let stress = 30 + jitter*22;
+  if(range<3) stress += 18;
+  if(voicedFrames<24) stress += 14;
+  stress = Math.round(Math.max(3,Math.min(97,stress)));
+
+  State.voiceStress=stress;
+  State.vocalRange=Math.round(range);
+  State.peakDb=Math.round(peakDb);
+  State.voiceReadout=(minF!==Infinity?freqToNote(minF).name:'—')+'→'+(maxF>0?freqToNote(maxF).name:'—');
+
+  readout.innerHTML='VOICE CAPTURED · <span style="color:var(--amber)">STRESS '+stress+'% · RANGE '+Math.round(range)+' semitones</span>';
+  showVoiceAnalysis(true);
+}
+
+function voiceFallback(msg){
+  stopVoice();
+  const btn=document.getElementById('btn-voice-start');
+  const readout=document.getElementById('voice-readout');
+  // אם המיקרופון נחסם — עדיין ממשיכים עם הערכה, כדי לא לתקוע את המשתמש
+  if(/BLOCKED|API/.test(msg)){
+    readout.innerHTML='<span style="color:var(--sell)">'+msg+'</span>';
+    State.voiceStress=35+Math.floor(Math.random()*40);
+    State.vocalRange=4+Math.floor(Math.random()*9);
+    State.peakDb=55+Math.floor(Math.random()*25);
+    State.voiceReadout='—';
+    btn.style.display=''; btn.disabled=false; btn.innerHTML='CONTINUE ANYWAY';
+    btn.classList.add('await-continue');
+    voiceState.skipToAnalysis=true;
+    return;
+  }
+  readout.innerHTML='<span style="color:var(--sell)">'+msg+'</span>';
+  btn.style.display=''; btn.disabled=false; btn.innerHTML='RETRY';
+}
+
+function buildVoiceAnalysis(){
+  const stress=State.voiceStress??50, range=State.vocalRange??0, peak=State.peakDb??0;
+  const lines=[];
+  // 1) שורה תחתונה
+  if(stress<40)
+    lines.push({ tag:'VOICE STRESS '+stress+'%', en:'Bottom line: your voice sounds steady and in control.', he:'שורה תחתונה: הקול שלך נשמע יציב ובשליטה.' });
+  else if(stress<66)
+    lines.push({ tag:'VOICE STRESS '+stress+'%', en:'Bottom line: your voice has some tension in it, but it holds.', he:'שורה תחתונה: יש מתח מסוים בקול, אבל הוא מחזיק.' });
+  else
+    lines.push({ tag:'VOICE STRESS '+stress+'%', en:'Bottom line: your voice sounds tense and shaky.', he:'שורה תחתונה: הקול שלך נשמע מתוח ורועד.' });
+  // 2) מנעד
+  if(range>=10)
+    lines.push({ tag:'VOCAL RANGE '+range+' st', en:'You covered a wide range of notes — you were not holding back.', he:'כיסית מנעד רחב של תווים — לא התאפקת.' });
+  else if(range>=4)
+    lines.push({ tag:'VOCAL RANGE '+range+' st', en:'You covered a normal range. You gave it a fair try.', he:'כיסית מנעד רגיל. נתת לזה ניסיון הוגן.' });
+  else
+    lines.push({ tag:'VOCAL RANGE '+range+' st', en:'You barely changed pitch — it sounds like you held back.', he:'כמעט לא שינית גובה — נשמע שהתאפקת.' });
+  // 3) יציבות
+  if(stress<45)
+    lines.push({ tag:'PITCH', en:'Your pitch stayed on track. That is the sound of a calm person.', he:'הגובה שלך נשאר יציב. זה הצליל של אדם רגוע.' });
+  else
+    lines.push({ tag:'PITCH', en:'Your pitch wavered as you sang. That usually shows nerves.', he:'הגובה שלך התנדנד תוך כדי. זה בדרך כלל מראה עצבנות.' });
+  // 4) עוצמה
+  if(peak>=75)
+    lines.push({ tag:'LOUDNESS '+peak+' dB', en:'You sang out loud. You are not trying to hide.', he:'שרת בקול רם. אתה לא מנסה להסתתר.' });
+  else if(peak>=45)
+    lines.push({ tag:'LOUDNESS '+peak+' dB', en:'You sang at a normal volume.', he:'שרת בעוצמה רגילה.' });
+  else
+    lines.push({ tag:'LOUDNESS '+peak+' dB', en:'You sang very quietly, almost holding it in.', he:'שרת בשקט רב, כמעט מדחיק את זה בפנים.' });
+  return { stress, range, peak, lines };
+}
+function voiceVerdict(a){
+  if(a.stress<40) return { en:'Your voice backs up a confident mind. Just do not let confidence turn into carelessness.', he:'הקול שלך מגבה מוח בטוח. רק אל תיתן לביטחון להפוך לרשלנות.' };
+  if(a.stress>=66) return { en:'Your voice is under stress. Under stress people trade to feel better, not to think better. Wait.', he:'הקול שלך תחת לחץ. תחת לחץ אנשים סוחרים כדי להרגיש טוב, לא כדי לחשוב טוב. חכה.' };
+  return { en:'Your voice is somewhere in between — a little tense. Notice it before you act.', he:'הקול שלך איפשהו באמצע — קצת מתוח. שים לב לזה לפני שאתה פועל.' };
+}
+function showVoiceAnalysis(){
+  const a=buildVoiceAnalysis();
+  const nameTag=State.name?' · '+State.name.toUpperCase():'';
+  document.getElementById('va-title').innerHTML='⚠&nbsp; VOICE STRESS ANALYSIS'+nameTag+' &nbsp;⚠';
+  document.getElementById('va-profile').textContent='PROFILE :: STRESS '+a.stress+'% · RANGE '+a.range+' st · PEAK '+a.peak+' dB';
+  document.getElementById('va-intro').innerHTML='I did not judge your singing. I listened to your <b>nerve</b>. Here is what I heard:'
+    +'<span class="he">לא שפטתי את השירה שלך. הקשבתי לעצבים שלך. הנה מה ששמעתי:</span>';
+  const wrap=document.getElementById('va-lines'); wrap.innerHTML='';
+  a.lines.forEach(l=>{ const row=document.createElement('div'); row.className='sa-line';
+    row.innerHTML='<span class="tag">'+l.tag+' ›</span><span>'+l.en+'<span class="he">'+l.he+'</span></span>'; wrap.appendChild(row); });
+  const v=voiceVerdict(a);
+  document.getElementById('va-verdict').innerHTML=v.en+'<span class="he">'+v.he+'</span>';
+  document.getElementById('voice-analysis').style.display='flex';
+}
+
+document.getElementById('btn-voice-start').addEventListener('click',()=>{
+  if(voiceState.skipToAnalysis){ voiceState.skipToAnalysis=false; showVoiceAnalysis(); return; }
+  runVoice();
+});
+document.getElementById('va-close').addEventListener('click',()=>{
+  document.getElementById('voice-analysis').style.display='none';
+  resetVoiceUI();
+});
+document.getElementById('va-continue').addEventListener('click',()=>{
+  document.getElementById('voice-analysis').style.display='none';
+  startCognitive();
+});
+
+/* =========================================================
+   STEP 6 : עומס קוגניטיבי · COGNITIVE LOAD
+   הטיקר של המשתמש חולף בין עשרות טיקרים מסיחים. עליו לתפוס
+   רק את שלו. מודדים זמן תגובה, דיוק וטעויות → מדד עומס.
+   ========================================================= */
+const COG_DECOYS = ['QQQ','SPY','TSLA','NVDA','AAPL','BTC','ETH','AMD','META','MSFT','GME','AMZN','GOOGL','SOXL','NFLX','INTC','BABA','COIN','PLTR','UBER','DIS','KO','XOM','JPM'];
+let cogState={ running:false, timers:[], raf:null, chips:[] };
+
+function cogTargetLabel(){
+  const s=(State.subject||'').trim().toUpperCase();
+  const known=COG_DECOYS.find(d=>d===s) || {QQQ:'QQQ',SPY:'SPY',NVDA:'NVDA',TSLA:'TSLA',AAPL:'AAPL',MSFT:'MSFT',AMZN:'AMZN',GOOGL:'GOOGL',META:'META',AMD:'AMD',BITCOIN:'BTC',ETHEREUM:'ETH'}[s];
+  if(known) return known;
+  const disp=subjectDisplay();
+  return (disp.length<=6 && !/\s/.test(disp)) ? disp : (disp.split(/\s+/)[0].slice(0,6).toUpperCase());
+}
+
+async function startCognitive(){
+  show('screen-cognitive'); setOrb(document.getElementById('cog-orb')); renderSteps();
+  cogResetUI();
+  const target=cogTargetLabel();
+  document.getElementById('cog-target').textContent=target;
+  await speak('One last test. Your ticker, '+target+', will streak across the noise. Tap only your ticker, as fast as you can. Wrong taps count against you. Press start.');
+}
+
+function cogResetUI(){
+  cogStop();
+  const field=document.getElementById('cog-field');
+  field.innerHTML='<div class="cog-start-hint" id="cog-start-hint">Your ticker streaks across a wall of noise. Tap <b>only your ticker</b> — every wrong tap costs you.</div>';
+  document.getElementById('cog-hits').textContent='0';
+  document.getElementById('cog-total').textContent='0';
+  document.getElementById('cog-react').textContent='-- ms';
+  document.getElementById('cog-load').textContent='--%';
+  document.getElementById('cog-readout').textContent='AWAITING START';
+  const btn=document.getElementById('btn-cog-start');
+  btn.style.display=''; btn.disabled=false; btn.classList.remove('await-continue'); btn.innerHTML='START DRILL';
+  const ov=document.getElementById('cog-analysis'); if(ov) ov.style.display='none';
+}
+
+function cogStop(){
+  cogState.running=false;
+  cogState.timers.forEach(t=>clearTimeout(t)); cogState.timers=[];
+  if(cogState.raf) cancelAnimationFrame(cogState.raf);
+  cogState.chips=[];
+}
+
+function runCognitive(){
+  if(cogState.running) return;
+  const field=document.getElementById('cog-field');
+  const target=cogTargetLabel();
+  const btn=document.getElementById('btn-cog-start');
+  btn.disabled=true; btn.style.display='none';
+  const hint=document.getElementById('cog-start-hint'); if(hint) hint.remove();
+  document.getElementById('cog-readout').textContent='CATCH IT…';
+
+  cogState.running=true; cogState.chips=[];
+  const TARGET_GOAL=7;
+  let targetsSpawned=0, hits=0, wrongs=0, missed=0; const reactions=[];
+  const fieldW=field.clientWidth, fieldH=field.clientHeight;
+
+  function updateHud(){
+    document.getElementById('cog-hits').textContent=String(hits);
+    document.getElementById('cog-total').textContent=String(targetsSpawned);
+    const avg=reactions.length?Math.round(reactions.reduce((a,b)=>a+b,0)/reactions.length):0;
+    document.getElementById('cog-react').textContent=avg?avg+' ms':'-- ms';
+  }
+
+  function spawnChip(isTarget){
+    const chip=document.createElement('div'); chip.className='cog-chip';
+    const label=isTarget?target:COG_DECOYS[Math.floor(Math.random()*COG_DECOYS.length)];
+    const px=(Math.random()*700+20).toFixed(2);
+    chip.innerHTML=label+'<span class="px">'+px+'</span>';
+    const y=Math.random()*(fieldH-42)+6;
+    chip.style.top=y+'px'; chip.style.left='0px';
+    const rightToLeft=Math.random()<0.5;
+    const dur=2200+Math.random()*1600;   // מהירות
+    const startX=rightToLeft?fieldW:-140, endX=rightToLeft?-140:fieldW;
+    chip.style.transform='translateX('+startX+'px)';
+    field.appendChild(chip);
+    const rec={ el:chip, isTarget, resolved:false, spawn:performance.now() };
+    cogState.chips.push(rec);
+    chip.addEventListener('pointerdown',(e)=>{
+      e.preventDefault(); if(rec.resolved||!cogState.running) return;
+      if(isTarget){ rec.resolved=true; hits++; reactions.push(performance.now()-rec.spawn); chip.classList.add('hit');
+        updateHud(); setTimeout(()=>chip.remove(),160); }
+      else { wrongs++; chip.classList.add('wrong'); setTimeout(()=>chip.classList.remove('wrong'),220); }
+    });
+    // אנימציית תנועה
+    const t0=performance.now();
+    function move(now){
+      if(!cogState.running){ return; }
+      const t=Math.min(1,(now-t0)/dur);
+      const x=startX+(endX-startX)*t;
+      chip.style.transform='translateX('+x+'px)';
+      if(t<1){ requestAnimationFrame(move); }
+      else {
+        if(isTarget && !rec.resolved){ missed++; }
+        chip.remove();
+      }
+    }
+    requestAnimationFrame(move);
+  }
+
+  // תזמון הופעות: מסיחים תכופים + מטרות מדי פעם
+  function scheduleDecoys(){
+    if(!cogState.running) return;
+    spawnChip(false);
+    cogState.timers.push(setTimeout(scheduleDecoys, 260+Math.random()*260));
+  }
+  function scheduleTargets(){
+    if(!cogState.running || targetsSpawned>=TARGET_GOAL) return;
+    targetsSpawned++; updateHud(); spawnChip(true);
+    if(targetsSpawned<TARGET_GOAL){
+      cogState.timers.push(setTimeout(scheduleTargets, 1300+Math.random()*1100));
+    } else {
+      // סיום מעט אחרי המטרה האחרונה
+      cogState.timers.push(setTimeout(()=>finishCognitive(hits, wrongs, missed, targetsSpawned, reactions), 3200));
+    }
+  }
+  scheduleDecoys();
+  cogState.timers.push(setTimeout(scheduleTargets, 900));
+}
+
+function finishCognitive(hits, wrongs, missed, total, reactions){
+  cogStop();
+  const avg=reactions.length?Math.round(reactions.reduce((a,b)=>a+b,0)/reactions.length):1600;
+  const hitRate=total?hits/total:0;
+  // מדד עומס: זמן תגובה איטי + החמצות + טעויות מעלים עומס
+  const reactionScore=Math.max(0,Math.min(60,(avg-400)/1100*60));
+  const missScore=(1-hitRate)*30;
+  const errorScore=Math.min(20,wrongs*4);
+  const load=Math.round(Math.max(3,Math.min(97, reactionScore+missScore+errorScore)));
+  State.cognitiveLoad=load; State.reactionMs=avg; State.hitRate=Math.round(hitRate*100);
+
+  document.getElementById('cog-load').textContent=load+'%';
+  document.getElementById('cog-react').textContent=avg+' ms';
+  document.getElementById('cog-readout').innerHTML='DRILL COMPLETE · <span style="color:var(--amber)">LOAD '+load+'% · '+hits+'/'+total+' CAUGHT</span>';
+  showCognitiveAnalysis(hits, wrongs, missed, total, avg);
+}
+
+function buildCognitiveAnalysis(hits,wrongs,missed,total,avg){
+  const load=State.cognitiveLoad??50, hr=State.hitRate??0;
+  const lines=[];
+  if(load<40) lines.push({ tag:'MENTAL LOAD '+load+'%', en:'Bottom line: you stayed sharp and clear-headed under pressure.', he:'שורה תחתונה: נשארת חד וצלול תחת לחץ.' });
+  else if(load<66) lines.push({ tag:'MENTAL LOAD '+load+'%', en:'Bottom line: the noise got to you a little, but you managed.', he:'שורה תחתונה: הרעש הפריע לך קצת, אבל הסתדרת.' });
+  else lines.push({ tag:'MENTAL LOAD '+load+'%', en:'Bottom line: under pressure you got overloaded and lost focus.', he:'שורה תחתונה: תחת לחץ נכנסת לעומס ואיבדת ריכוז.' });
+
+  if(avg<650) lines.push({ tag:'REACTION '+avg+' ms', en:'You reacted fast. Your eyes and hands are quick.', he:'הגבת מהר. העיניים והידיים שלך זריזות.' });
+  else if(avg<1100) lines.push({ tag:'REACTION '+avg+' ms', en:'Your reaction time was average.', he:'זמן התגובה שלך היה ממוצע.' });
+  else lines.push({ tag:'REACTION '+avg+' ms', en:'You reacted slowly. The noise slowed you down.', he:'הגבת לאט. הרעש האט אותך.' });
+
+  lines.push({ tag:'ACCURACY '+hr+'%', en:'You caught '+hits+' of '+total+' and mis-tapped '+wrongs+' time'+(wrongs===1?'':'s')+'.',
+    he:'תפסת '+hits+' מתוך '+total+' וטעית '+wrongs+' פעמים.' });
+
+  if(wrongs>=3) lines.push({ tag:'IMPULSE', en:'You grabbed at the wrong tickers. In a real trade that is money gone.', he:'קפצת על הטיקרים הלא נכונים. בעסקה אמיתית זה כסף שהלך.' });
+  else lines.push({ tag:'CONTROL', en:'You mostly hit only your own ticker. Good discipline.', he:'ברובו לחצת רק על הטיקר שלך. משמעת טובה.' });
+  return { load, hr, lines };
+}
+function cognitiveVerdict(a){
+  if(a.load<40) return { en:'You keep a clear head when the screen gets loud. That is rare — use it, do not waste it on gambling.', he:'אתה שומר על ראש צלול כשהמסך מתמלא רעש. זה נדיר — נצל את זה, אל תבזבז על הימורים.' };
+  if(a.load>=66) return { en:'When markets move fast, you overload. That is exactly when people click the wrong button. Trade slow, or not at all.', he:'כשהשוק זז מהר, אתה נכנס לעומס. בדיוק אז אנשים לוחצים על הכפתור הלא נכון. סחור לאט, או בכלל לא.' };
+  return { en:'You hold up, but noise costs you speed and accuracy. Give yourself fewer things to watch.', he:'אתה מחזיק מעמד, אבל הרעש עולה לך במהירות ובדיוק. תן לעצמך פחות דברים לעקוב אחריהם.' };
+}
+function showCognitiveAnalysis(hits,wrongs,missed,total,avg){
+  const a=buildCognitiveAnalysis(hits,wrongs,missed,total,avg);
+  const nameTag=State.name?' · '+State.name.toUpperCase():'';
+  document.getElementById('ca-title').innerHTML='⚠&nbsp; COGNITIVE LOAD ANALYSIS'+nameTag+' &nbsp;⚠';
+  document.getElementById('ca-profile').textContent='PROFILE :: LOAD '+a.load+'% · REACTION '+avg+' ms · ACCURACY '+a.hr+'%';
+  document.getElementById('ca-intro').innerHTML='I flooded the screen and watched how you cope. Here is what I saw:'
+    +'<span class="he">הצפתי את המסך ובדקתי איך אתה מתמודד. הנה מה שראיתי:</span>';
+  const wrap=document.getElementById('ca-lines'); wrap.innerHTML='';
+  a.lines.forEach(l=>{ const row=document.createElement('div'); row.className='sa-line';
+    row.innerHTML='<span class="tag">'+l.tag+' ›</span><span>'+l.en+'<span class="he">'+l.he+'</span></span>'; wrap.appendChild(row); });
+  const v=cognitiveVerdict(a);
+  document.getElementById('ca-verdict').innerHTML=v.en+'<span class="he">'+v.he+'</span>';
+  document.getElementById('cog-analysis').style.display='flex';
+}
+
+document.getElementById('btn-cog-start').addEventListener('click',()=>runCognitive());
+document.getElementById('ca-close').addEventListener('click',()=>{
+  document.getElementById('cog-analysis').style.display='none';
+  cogResetUI();
+});
+document.getElementById('ca-continue').addEventListener('click',()=>{
+  document.getElementById('cog-analysis').style.display='none';
+  startWheel();
+});
+
+/* =========================================================
+   STEP 6.5 : גלגל המזל — "סמוך על הבטן"
+   ========================================================= */
+const WHEEL = [
+  {n:'01', t:'JACKPOT'},   {n:'02', t:'MOON SHOT'}, {n:'03', t:'BULL RUN'},
+  {n:'04', t:'DOUBLE UP'}, {n:'05', t:'PROFIT'},    {n:'06', t:'HOLD'},
+  {n:'07', t:'VOLATILE'},  {n:'08', t:'SMALL WIN'}, {n:'09', t:'MARKET DIP'},
+  {n:'10', t:'BEAR MARKET'},{n:'11', t:'CRASH'},    {n:'12', t:'LOSE'}
+];
+const WHEEL_LINES = {
+  'JACKPOT':'Your gut screams all-in. The wheel dares you to believe it.',
+  'MOON SHOT':'You reach for the sky. The wheel points up — so does gravity.',
+  'BULL RUN':'The herd charges. Your instinct wants to run with it.',
+  'DOUBLE UP':'One bet, double stakes. The wheel raises what your gut already wants.',
+  'PROFIT':'A quiet green. Instinct says take the win and breathe.',
+  'HOLD':'The wheel says wait. Sometimes the boldest move is none.',
+  'VOLATILE':'Everything shakes. Your gut will be tested by the noise.',
+  'SMALL WIN':'Not glory — but real. Instinct settles for solid ground.',
+  'MARKET DIP':'A dip, not a fall. Fear whispers; instinct decides.',
+  'BEAR MARKET':'The bear wakes. Your gut leans defensive now.',
+  'CRASH':'The floor cracks. The wheel names what your gut already fears.',
+  'LOSE':'The wheel shows the loss you dread. Face it — then choose anyway.'
+};
+let needleRotation=0, wheelSpinning=false;
+
+/* בוחר על איזו גזרה המחוג ייעצר — משוקלל לפי הניתוח האישי, עם קורטוב מזל */
+function chooseWheelSegment(){
+  const dc  = (typeof computeDecisionConfidence==='function') ? computeDecisionConfidence() : 50;
+  const risk= (typeof computeRisk==='function') ? computeRisk().r : 50;
+  const beh = (typeof computeBehavior==='function') ? computeBehavior().s : 50;
+  let sentiment = (dc-50)*0.6 - (risk-50)*0.6 + (beh-50)*0.3;   // >0 חיובי · <0 שלילי
+  if(State.act==='buy') sentiment+=8; else if(State.act==='sell') sentiment-=4;
+  if(State.hope==='sharp') sentiment+=5;
+  // סימן רגשי לכל גזרה: 01..12
+  const sign=[ +2,+2,+1,+1,+1, 0, 0, +1, -1,-1,-2,-2 ];
+  const weights=sign.map(s=>Math.max(0.12, 1 + s*(sentiment/40)));
+  const total=weights.reduce((a,b)=>a+b,0);
+  let r=Math.random()*total;
+  for(let i=0;i<weights.length;i++){ r-=weights[i]; if(r<=0) return i; }
+  return weights.length-1;
+}
+
+async function startWheel(){
+  show('screen-wheel'); setOrb(document.getElementById('wheel-orb')); renderSteps();
+  const needle=document.getElementById('wheel-needle');
+  needle.style.transition='none'; needle.style.transform='translate(-50%,-100%) rotate('+needleRotation+'deg)';
+  void needle.offsetWidth;                       // reflow כדי לאפס אנימציה
+  needle.style.transition='';
+  const spinBtn=document.getElementById('btn-wheel-spin');
+  spinBtn.style.display='inline-block'; spinBtn.disabled=false;
+  document.getElementById('btn-wheel-continue').style.display='none';
+  document.getElementById('wheel-readout').innerHTML='/// SYSTEM READY ///<br>PRESS SPIN AND FOLLOW YOUR INSTINCT';
+  await speak((State.name?State.name+'. ':'')+'One last thing. Spin the wheel — and trust your gut.');
+}
+
+function spinWheel(){
+  if(wheelSpinning) return; wheelSpinning=true;
+  const needle=document.getElementById('wheel-needle');
+  const i=chooseWheelSegment(), seg=WHEEL[i];
+  const base=needleRotation + 360*6;             // שישה סיבובים מלאים
+  const rem=(((i*30) - base)%360 + 360)%360;      // המחוג מצביע למרכז גזרה i (0°=מעלה=01)
+  needleRotation=base + rem;
+  needle.style.transform='translate(-50%,-100%) rotate('+needleRotation+'deg)';
+  const spinBtn=document.getElementById('btn-wheel-spin'); spinBtn.disabled=true;
+  document.getElementById('wheel-readout').innerHTML='&gt; SPINNING…';
+  let settled=false;
+  const done=()=>{ if(settled) return; settled=true; needle.removeEventListener('transitionend',done); wheelSpinning=false; onWheelLanded(seg); };
+  needle.addEventListener('transitionend',done);
+  setTimeout(done, 5700);
+}
+
+function onWheelLanded(seg){
+  State.wheelResult = seg.n+' '+seg.t;
+  const line = WHEEL_LINES[seg.t] || 'The wheel has spoken.';
+  document.getElementById('wheel-readout').innerHTML='&gt; YOU LANDED ON :: <b>'+seg.n+' '+seg.t+'</b><br>'+line;
+  document.getElementById('btn-wheel-spin').style.display='none';
+  document.getElementById('btn-wheel-continue').style.display='inline-block';
+  speak('The wheel landed on '+seg.t+'. '+line);
+}
+
+document.getElementById('btn-wheel-spin').addEventListener('click', spinWheel);
+document.getElementById('btn-wheel-continue').addEventListener('click', ()=>revealRitual());
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Enter') return;
+  const act=document.querySelector('.screen.active');
+  if(!act || act.id!=='screen-wheel') return;
+  const spinBtn=document.getElementById('btn-wheel-spin');
+  if(spinBtn && spinBtn.style.display!=='none' && !spinBtn.disabled){ spinWheel(); }
+  else { const cont=document.getElementById('btn-wheel-continue'); if(cont && cont.style.display!=='none') revealRitual(); }
+});
+
+/* =========================================================
+   STEP 7 : הטקס + הטוויסט
+   ========================================================= */
+function subjectDisplay(){ const s=(State.subject||'').trim(); if(!s)return 'IT'; return (s.length<=5 && !/\s/.test(s))?s.toUpperCase():s; }
+
+// קטלוג מלא של 16 הקלפים
+const TAROT = {
+  chariot:   {s:'🏇', img:'media/tarot/chariot.png',          n:'The Chariot',        m:'You want it all, and fast.'},
+  empress:   {s:'🌱', img:'media/tarot/empress.png',          n:'The Empress',        m:'You want it slow and safe.'},
+  hermit:    {s:'🌫️', img:'media/tarot/hermit.png',           n:'The Hermit',         m:'You say it doesn\'t matter. It does.'},
+  fool:      {s:'🌀', img:'media/tarot/fool.png',             n:'The Fool',           m:'You step toward the edge without looking down.'},
+  tower:     {s:'🗼', img:'media/tarot/tower.png',            n:'The Tower',          m:'Loss is the ghost behind you.'},
+  wheel:     {s:'🎡', img:'media/tarot/wheel-of-fortune.png', n:'Wheel of Fortune',   m:'You fear the train leaving without you.'},
+  justice:   {s:'⚖️', img:'media/tarot/justice.png',          n:'Justice',            m:'You fear your own mistake more than money.'},
+  magician:  {s:'🎭', img:'media/tarot/magician.png',         n:'The Magician',       m:'What you show is not what you feel.'},
+  hierophant:{s:'👥', img:'media/tarot/hierophant.png',       n:'The Hierophant',     m:'You move with the herd, even when alone.'},
+  death:     {s:'💀', img:'media/tarot/death.png',            n:'Death',              m:'You are ready to end something and won\'t admit it.'},
+  emperor:   {s:'👑', img:'media/tarot/emperor.png',          n:'The Emperor',        m:'You need control more than you need profit.'},
+  hanged:    {s:'🙃', img:'media/tarot/hanged-man.png',       n:'The Hanged Man',     m:'You are stuck, waiting for a sign that won\'t come.'},
+  priestess: {s:'🌙', img:'media/tarot/high-priestess.png',   n:'The High Priestess', m:'You already know the answer — you just want it out loud.'},
+  strength:  {s:'🦁', img:'media/tarot/strength.png',         n:'Strength',           m:'You are steadier than you let yourself believe.'},
+  temperance:{s:'🍶', img:'media/tarot/temperance.png',       n:'Temperance',         m:'You balance greed and fear on a blade\'s edge.'},
+  moon:      {s:'🌘', img:'media/tarot/the-moon.png',         n:'The Moon',           m:'Something unspoken is pulling you. You can\'t see it yet.'}
+};
+
+// מפתח יחיד לכל אדם — נבנה מכל נתוני הניתוח שלו, כך שאנשים שונים מקבלים קלפים שונים
+function cardSeed(){
+  const parts=[State.name, State.subject, State.act, State.hope, State.fear,
+    State.confidence, State.steadiness, State.auraTurbulence, (State.auraColor&&State.auraColor.n),
+    State.expression, State.blinks, State.blinkLatency, State.eyeContact, State.gazeAway,
+    State.voiceStress, State.vocalRange, State.peakDb, State.cognitiveLoad, State.reactionMs, State.hitRate];
+  const s=parts.join('|'); let h=2166136261;
+  for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); }
+  return (h>>>0);
+}
+function pickCard(pool, seed, used){
+  const avail=pool.filter(c=>!used.has(c.n));
+  const list=avail.length?avail:pool;
+  const c=list[seed % list.length];
+  used.add(c.n);
+  return c;
+}
+
+function buildCards(){
+  const T=TAROT, seed=cardSeed(), used=new Set();
+  const gap=State.confidence-(State.steadiness??50);
+  const turb=State.auraTurbulence??50, vs=State.voiceStress??50, load=State.cognitiveLoad??50;
+  const steady=State.steadiness??50;
+
+  // קלף 1 — התקווה: מה שאתה רוצה, לפי הבחירה + האנרגיה שלך
+  const hopePool = ({
+    sharp:  [T.chariot, T.magician, T.emperor, T.death],
+    gentle: [T.empress, T.temperance, T.strength, T.hierophant],
+    nocare: [T.hermit, T.hanged, T.moon, T.fool]
+  })[State.hope] || [T.fool, T.moon, T.priestess, T.wheel];
+
+  // קלף 2 — הפחד: ממה אתה נרתע
+  const fearPool = ({
+    lose:  [T.tower, T.death, T.hanged],
+    miss:  [T.wheel, T.chariot, T.moon],
+    wrong: [T.justice, T.priestess, T.emperor]
+  })[State.fear] || [T.tower, T.moon, T.wheel, T.hanged];
+
+  // קלף 3 — המראה: האות הנסתר החזק ביותר בניתוח
+  let mirrorPool;
+  if(gap>=25)            mirrorPool=[T.magician, T.moon, T.priestess];
+  else if(turb>=65)      mirrorPool=[T.moon, T.wheel, T.tower];
+  else if(vs>=60)        mirrorPool=[T.temperance, T.tower, T.hanged];
+  else if(load>=60)      mirrorPool=[T.wheel, T.tower, T.magician];
+  else if(State.gazeAway)mirrorPool=[T.hanged, T.hermit, T.moon];
+  else if(steady>=75)    mirrorPool=[T.strength, T.priestess, T.temperance];
+  else                   mirrorPool=[T.hierophant, T.fool, T.emperor, T.justice];
+
+  const hope  =pickCard(hopePool,   seed,        used);
+  const fear  =pickCard(fearPool,   seed>>>3,    used);
+  const mirror=pickCard(mirrorPool, seed>>>6,    used);
+
+  return [
+    {...hope,   lbl:'The Hope'},
+    {...fear,   lbl:'The Fear'},
+    {...mirror, lbl:'The Mirror'}
+  ];
+}
+
+function buildReveal(){
+  const S=subjectDisplay();
+  const conf=State.confidence, steady=State.steadiness??50;
+  const turb=State.auraTurbulence??50, col=State.auraColor;
+  const lines=[];
+  // ordered by priority — strongest internal contradictions first
+  if(conf>=70 && steady<45)
+    lines.push({en:`You told me you were certain. Your aura told me otherwise.`});
+  else if(turb>=65)
+    lines.push({en:`Your aura would not hold still. Part of you is already in motion toward <span class="em">${S}</span>.`});
+  else if(State.gazeAway)
+    lines.push({en:`Your eyes kept drifting from the lens. Part of you is already looking for the exit, not the entry on <span class="em">${S}</span>.`});
+  else if(steady>=80)
+    lines.push({en:`Your face barely moved. You are far calmer than your words pretend to be.`});
+  else if(State.fear==='miss')
+    lines.push({en:`You are not afraid <span class="em">${S}</span> will fall. You are afraid of not being there when it rises.`});
+  else if(State.fear==='lose' && State.act==='buy')
+    lines.push({en:`You want to buy, yet you fear loss. You don't seek <span class="em">${S}</span> — you seek permission.`});
+  else if(State.fear==='wrong')
+    lines.push({en:`You are not afraid of the market. You are afraid of being wrong in front of yourself.`});
+  else if(conf<40 && State.act!=='wait')
+    lines.push({en:`You are not sure — and still you would act. That is not courage. It is hunger.`});
+  else if(State.hope==='sharp' && State.fear==='lose')
+    lines.push({en:`You crave a sudden rise and dread the fall. You want reward without risk. The market doesn't sell that.`});
+  else if(col)
+    lines.push({en:`Your aura burns <span class="em">${col.n.toLowerCase()}</span> — ${col.m}. That, not the chart, is what drives you toward <span class="em">${S}</span>.`});
+  else
+    lines.push({en:`You already decided — before you walked into this room.`});
+  return lines[0];
+}
+
+function verdictFor(){
+  if(State.act==='sell')return {word:'SELL',say:'Sell.'};
+  if(State.act==='buy') return {word:'BUY', say:'Buy.'};
+  return {word:'HOLD',say:'Hold.'};
+}
+
+function setCard(idx,d){
+  const c=document.getElementById('card-'+idx);
+  const slot=c.closest('.card-slot');
+  document.getElementById('lbl-'+idx).textContent = d.lbl;
+  const sym=c.querySelector('.symbol');
+  if(d.img){
+    sym.innerHTML='<img class="card-img" src="'+d.img+'" alt="'+d.n+'">';
+    sym.querySelector('img').addEventListener('error',()=>{ sym.textContent=d.s; }); // נפילה לאימוג'י אם התמונה חסרה
+  } else { sym.textContent=d.s; }
+  slot.querySelector('.name').textContent=d.n;
+  slot.querySelector('.meaning').textContent=d.m;
+}
+
+async function revealRitual(){
+  show('screen-ritual'); setOrb(null); renderSteps();
+  const cards=buildCards(); State.cards=cards;
+  [0,1,2].forEach(i=>{ setCard(i,cards[i]); document.getElementById('card-'+i).classList.remove('flipped'); });
+  // אפס תצוגת טקסט + הסתר את בלוק הפסק־דין כך שהקלפים יופיעו לבד, ממורכזים ובמלואם
+  document.getElementById('verdict-block').style.display='none';
+  document.getElementById('verdict-stock').textContent=''; document.getElementById('verdict-word').textContent='';
+  document.getElementById('verdict-word-he').textContent=''; document.getElementById('reveal-text').innerHTML=''; document.getElementById('closer-text').innerHTML='';
+
+  await speak(State.name ? (State.name + ', the cards are turning.') : 'The cards are turning. Witness them.');
+  for(let i=0;i<3;i++){ await wait(1200); document.getElementById('card-'+i).classList.add('flipped'); await speak(cards[i].n); await wait(700); }
+  // השהייה ארוכה כדי לראות את שלושת הקלפים במלואם לפני שהפסק־דין מופיע
+  await wait(4200);
+
+  document.getElementById('verdict-block').style.display='flex';
+  const v=verdictFor(), S=subjectDisplay();
+  document.getElementById('verdict-stock').textContent='SIGNAL FOR :: '+S;
+  const w=document.getElementById('verdict-word'); w.textContent=v.word; w.className='verdict '+v.word;
+  await speak('The room says ' + v.say);
+  await wait(500);
+
+  const r=buildReveal();
+  const revEl=document.getElementById('reveal-text');
+  const spoken=(State.name?State.name+'. ':'') + r.en.replace(/<[^>]+>/g,'');
+  await Promise.all([ typeHTML(revEl, r.en, 40), speak(spoken) ]);
+  await wait(500);
+  const closerEn='The search for a sign is the decision itself.';
+  const closerEl=document.getElementById('closer-text');
+  await Promise.all([ typeHTML(closerEl, closerEn, 40), speak(closerEn) ]);
+  await wait(300);
+  document.getElementById('verdict-final').style.display='none';
+  const ch=document.getElementById('verdict-choice'); ch.style.display='flex';
+  await speak('Will you accept what the room decided?');
+}
+
+async function respondChoice(accepted){
+  document.getElementById('verdict-choice').style.display='none';
+  if(accepted){ await showStake(); return; }
+  const msg = 'You refuse. Yet the signal is already inside you now, and you will not forget it. That, too, is a decision.';
+  const fin=document.getElementById('verdict-final');
+  document.getElementById('final-text').textContent = msg;
+  fin.style.display='flex';
+  await speak(msg);
+}
+
+function fmtMoney(n){ return (n<0?'-':'')+'$'+Math.abs(Math.round(n)).toLocaleString('en-US'); }
+function nice(n){ return '$'+Math.round(n).toLocaleString('en-US'); }
+
+const TRADE = { rec:null, size:0, action:'HOLD', base:0 };
+
+/* חתימה מספרית יציבה מהשם — כדי שגם תשובות זהות ייתנו סכומים שונים לאנשים שונים */
+function nameSeed(){
+  const s=(State.name||'anon').toLowerCase(); let h=0;
+  for(let i=0;i<s.length;i++){ h=(h*31 + s.charCodeAt(i))>>>0; }
+  return (h%1000)/1000; // 0..1
+}
+
+/* המלצת גודל פוזיציה — נגזרת ממה שהמכונה "למדה" על המשתמש */
+function recommendStake(){
+  const conf   = State.confidence ?? 50;
+  const steady = State.steadiness ?? 50;
+  const turb   = State.auraTurbulence ?? 50;
+  const blinks = State.blinks ?? 0;
+  const expr   = State.expression || 'Guarded';
+
+  // מרכיבים בעלי משקל גבוה כך שההמלצה מתפזרת בין אנשים
+  let conviction = 50;
+  conviction += (conf-50)*0.70;       // מה שאמר על עצמו
+  conviction += (steady-50)*0.55;     // יציבות מהסריקה
+  conviction -= (turb-50)*0.55;       // סערת ההילה
+  conviction -= Math.min(blinks,12)*2.2; // מצמוץ = עצבנות
+  if(State.gazeAway) conviction -= 12;
+
+  const exprAdj = { Composed:+11, Guarded:0, Tense:-11, Astonished:-8, Evasive:-13 }[expr] || 0;
+  conviction += exprAdj;
+
+  if(State.hope==='sharp')  conviction += 12;   // רוצה הכל מהר → נוטה להמר גדול
+  else if(State.hope==='gentle') conviction -= 8;
+  else if(State.hope==='nocare') conviction -= 4;
+
+  if(State.fear==='lose')  conviction -= 18;
+  else if(State.fear==='wrong') conviction -= 12;
+  else if(State.fear==='miss')  conviction -= 8;
+
+  if(State.act==='wait') conviction -= 16;
+  else if(State.act==='buy') conviction += 5;
+
+  // הטיה קטנה וייחודית לכל שם (±6) — שובר תיקו בין תשובות זהות
+  conviction += (nameSeed()-0.5)*12;
+
+  conviction = Math.max(5, Math.min(95, conviction));
+
+  const MAX = 50000;
+  let amount = Math.round((conviction/100)*MAX/250)*250; // עיגול ל-250
+  amount = Math.max(500, amount);
+
+  let reason;
+  if(conf>=70 && steady<45) reason='You sounded certain, but your body would not sit still. I am sizing this down to protect you from yourself.';
+  else if(turb>=65) reason='Your aura would not settle. When the inside is loud, the position should be quiet.';
+  else if(blinks>=8) reason='You blinked like a cornered animal. That is not the pulse of someone who should bet big.';
+  else if(expr==='Composed' && steady>=60) reason='You held yourself composed and still. You can afford some conviction here.';
+  else if(expr==='Tense') reason='Your face was tense the whole scan. Tension makes people force trades. Smaller.';
+  else if(State.hope==='sharp') reason='You crave a fast, sharp win — which is exactly the appetite that blows accounts. I am tempering it.';
+  else if(State.fear==='miss') reason='Your fear is missing out — and that is exactly when people bet too much. I am capping you.';
+  else if(State.fear==='lose') reason='You fear loss more than you crave gain. Commit only what you can watch fall.';
+  else if(State.fear==='wrong') reason='You fear being wrong in front of yourself. Keep the stake small enough to survive being wrong.';
+  else if(conf<40) reason='You told me you are not sure. Small is wise.';
+  else reason='A measured size, for a measured mind.';
+
+  const tag = conviction<34 ? 'SUGGESTED · CAUTIOUS' : (conviction<66 ? 'SUGGESTED · BALANCED' : 'SUGGESTED · CONVICTION');
+  return { amount, conviction, reason, tag };
+}
+
+async function showStake(){
+  const v=verdictFor(), S=subjectDisplay();
+  document.getElementById('stake-ticker').textContent=S;
+  const a=document.getElementById('stake-action'); a.textContent=v.word; a.className='result-act '+v.word;
+
+  const rec=recommendStake(); TRADE.rec=rec;
+  const slider=document.getElementById('stake-slider');
+  slider.value=rec.amount;
+  document.getElementById('stake-amount').textContent=nice(rec.amount);
+  document.getElementById('stake-reco-tag').textContent=rec.tag+' · '+nice(rec.amount);
+
+  const recoText = (v.word==='HOLD')
+    ? 'The room told you to hold. If you still want a position, keep it small. '+rec.reason+' Set the dial and place it.'
+    : 'Based on what I read in you, I would commit about '+nice(rec.amount)+' to this '+v.word+'. '+rec.reason+' Move the dial to your own number, then place the position.';
+  document.getElementById('stake-reco').textContent=recoText;
+
+  show('screen-stake');
+  await speak(recoText);
+}
+
+document.getElementById('stake-slider').addEventListener('input',(e)=>{
+  const val=Number(e.target.value);
+  document.getElementById('stake-amount').textContent=nice(val);
+  const tag=document.getElementById('stake-reco-tag');
+  if(TRADE.rec && val===TRADE.rec.amount) tag.textContent=TRADE.rec.tag+' · MATCHES SIGNAL';
+  else tag.textContent='YOUR CHOICE · '+nice(val);
+});
+
+document.getElementById('btn-place').addEventListener('click',()=>{
+  const val=Number(document.getElementById('stake-slider').value);
+  startTrade(val);
+});
+
+async function startTrade(size){
+  const v=verdictFor(), S=subjectDisplay();
+  TRADE.size=size; TRADE.action=v.word;
+  const base = 40 + Math.random()*260;
+  TRADE.base=base;
+
+  document.getElementById('trade-ticker').textContent=S;
+  document.getElementById('trade-entry').textContent='$'+base.toFixed(2);
+  document.getElementById('trade-size').textContent=nice(size);
+  document.getElementById('trade-action').textContent=v.word;
+  document.getElementById('trade-titlebar').innerHTML='<span class="live-dot">●</span> LIVE · <span id="trade-ticker">'+S+'</span>';
+  document.getElementById('trade-verdict').style.display='none';
+  document.getElementById('trade-note').style.display='none';
+  document.getElementById('btn-restart2').style.display='none';
+  document.getElementById('trade-price').textContent='$'+base.toFixed(2);
+  document.getElementById('trade-move').textContent='0.00%';
+  document.getElementById('trade-pl').textContent='$0'; document.getElementById('trade-pl').className='result-pl flat';
+
+  show('screen-trade');
+  await speak(v.word==='HOLD' ? ('Position noted. Watching '+S+' live.') : ('Position placed on '+S+'. Watching it live.'));
+  await runLiveChart(base, size, v.word, S);
+}
+
+/* ציור גרף נרות (candlestick) בסגנון מסך מסחר */
+function drawCandles(ctx,W,H,candles,base){
+  ctx.clearRect(0,0,W,H);
+  const padT=14, padB=16, padL=10, padR=62;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  let min=base, max=base;
+  candles.forEach(c=>{ if(c.l<min)min=c.l; if(c.h>max)max=c.h; });
+  const m=(max-min)||base*0.01; min-=m*0.10; max+=m*0.10;
+  const rng=(max-min)||1;
+  const Y=p=> padT + (1-(p-min)/rng)*plotH;
+
+  ctx.lineWidth=1; ctx.font='11px "Share Tech Mono", monospace'; ctx.textBaseline='middle';
+  for(let g=0;g<=4;g++){
+    const yy=padT+g*plotH/4, val=max-(g/4)*rng;
+    ctx.strokeStyle='rgba(46,230,107,0.09)'; ctx.beginPath(); ctx.moveTo(padL,yy); ctx.lineTo(padL+plotW,yy); ctx.stroke();
+    ctx.fillStyle='rgba(120,200,160,0.5)'; ctx.textAlign='left'; ctx.fillText('$'+val.toFixed(2), padL+plotW+7, yy);
+  }
+
+  // קו הכניסה (entry)
+  const ey=Y(base);
+  ctx.setLineDash([5,4]); ctx.strokeStyle='rgba(255,179,71,0.65)'; ctx.beginPath(); ctx.moveTo(padL,ey); ctx.lineTo(padL+plotW,ey); ctx.stroke(); ctx.setLineDash([]);
+
+  const n=candles.length||1;
+  const step=plotW/n;
+  const cw=Math.max(2, step*0.6);
+  candles.forEach((c,i)=>{
+    const cx=padL + i*step + step/2;
+    const up=c.c>=c.o, col=up?'#2ee66b':'#ff5c5c';
+    ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(cx, Y(c.h)); ctx.lineTo(cx, Y(c.l)); ctx.stroke();      // פתיל
+    const top=Math.min(Y(c.o),Y(c.c)); let bh=Math.abs(Y(c.c)-Y(c.o)); if(bh<1.4)bh=1.4;  // גוף
+    ctx.fillRect(cx-cw/2, top, cw, bh);
+  });
+
+  // תגית מחיר נוכחי בקצה הימני
+  const last=candles[n-1]; if(last){
+    const ly=Y(last.c), lup=last.c>=base, col=lup?'#2ee66b':'#ff5c5c';
+    ctx.strokeStyle=col; ctx.setLineDash([2,3]); ctx.beginPath(); ctx.moveTo(padL,ly); ctx.lineTo(padL+plotW,ly); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle=col; ctx.fillRect(padL+plotW, ly-9, padR, 18);
+    ctx.fillStyle='#02110a'; ctx.textAlign='left'; ctx.fillText(last.c.toFixed(2), padL+plotW+5, ly);
+  }
+}
+
+async function runLiveChart(base, size, action, S){
+  const canvas=document.getElementById('trade-chart'); const ctx=canvas.getContext('2d');
+  const W=canvas.width, H=canvas.height;
+  const priceEl=document.getElementById('trade-price');
+  const moveEl=document.getElementById('trade-move');
+  const plEl=document.getElementById('trade-pl');
+
+  let price=base;
+  const candles=[];
+  const maxCandles=44, periods=34, ticksPer=3, vol=0.007;
+
+  const paint=(forming)=>{
+    const view = forming ? candles.concat([forming]) : candles.slice();
+    drawCandles(ctx,W,H,view,base);
+    const pct=(price/base-1)*100;
+    const pl = action==='HOLD' ? 0 : (action==='SELL' ? size*(-pct/100) : size*(pct/100));
+    priceEl.textContent='$'+price.toFixed(2); priceEl.style.color = price>=base?'var(--buy)':'var(--sell)';
+    moveEl.textContent=(pct>=0?'+':'')+pct.toFixed(2)+'%'; moveEl.style.color = pct>=0?'var(--buy)':'var(--sell)';
+    plEl.textContent=(pl>=0?'+':'')+fmtMoney(pl);
+    plEl.className='result-pl '+(action==='HOLD'?'flat':(pl>0?'win':(pl<0?'loss':'flat')));
+  };
+
+  for(let p=0;p<periods;p++){
+    const cur={o:price,h:price,l:price,c:price};
+    for(let k=0;k<ticksPer;k++){
+      const g=(Math.random()+Math.random()+Math.random()-1.5)/1.5; // רעש ~גאוסי
+      price=price*(1+g*vol); if(price<1)price=1;
+      cur.c=price; if(price>cur.h)cur.h=price; if(price<cur.l)cur.l=price;
+      paint(cur);
+      await wait(115);
+    }
+    candles.push(cur);
+    if(candles.length>maxCandles) candles.shift();
+  }
+  await finalizeTrade(base, price, size, action, S);
+}
+
+async function finalizeTrade(base, price, size, action, S){
+  const pct=(price/base-1)*100;
+  const pl = action==='HOLD' ? 0 : (action==='SELL' ? size*(-pct/100) : size*(pct/100));
+  document.getElementById('trade-titlebar').innerHTML='▓  MARKET CLOSED · '+S+'  ▓';
+  const outcome = action==='HOLD' ? 'flat' : (pl>0.5?'win':(pl<-0.5?'loss':'flat'));
+  Object.assign(TRADE, { entry:base, close:price, pct, pl, outcome, subject:S });
+  const plEl=document.getElementById('trade-pl');
+  plEl.textContent=(pl>=0?'+':'')+fmtMoney(pl); plEl.className='result-pl '+outcome;
+  const verdEl=document.getElementById('trade-verdict'); const noteEl=document.getElementById('trade-note');
+  if(action==='HOLD'){
+    verdEl.textContent='YOU STAYED OUT'; verdEl.className='result-verdict flat';
+    noteEl.textContent=S+' moved '+(pct>=0?'+':'')+pct.toFixed(2)+'% while you watched. You risked nothing — and that, too, was a choice.';
+  } else if(outcome==='win'){
+    verdEl.textContent='YOU PROFITED'; verdEl.className='result-verdict win';
+    noteEl.textContent='You put in '+nice(size)+' and walked out with +'+fmtMoney(pl)+'. The market agreed with the room — this time. Do not mistake luck for a signal.';
+  } else if(outcome==='loss'){
+    verdEl.textContent='YOU LOST'; verdEl.className='result-verdict loss';
+    noteEl.textContent='You put in '+nice(size)+' and the market took '+fmtMoney(Math.abs(pl))+'. The room read you — never the future.';
+  } else {
+    verdEl.textContent='FLAT'; verdEl.className='result-verdict flat';
+    noteEl.textContent=S+' barely moved. The market shrugged.';
+  }
+  verdEl.style.display='block'; noteEl.style.display='block';
+  document.getElementById('btn-restart2').style.display='inline-block';
+  const spoken = action==='HOLD' ? (S+' moved '+pct.toFixed(1)+' percent while you watched.')
+    : outcome==='win' ? ('The market closed. You are up '+fmtMoney(Math.abs(pl))+'. This time.')
+    : outcome==='loss' ? ('The market closed. You are down '+fmtMoney(Math.abs(pl))+'. The room read you, not the future.')
+    : (S+' barely moved.');
+  await speak(spoken);
+}
+
+function setShot(id, data, empty){
+  const el=document.getElementById(id);
+  if(data){ el.style.backgroundImage='url("'+data+'")'; el.classList.remove('empty'); el.textContent=''; }
+  else { el.style.backgroundImage='none'; el.classList.add('empty'); el.textContent=empty; }
+}
+
+/* ----- מפות תוויות: הופכות ערכים גולמיים לטקסט קריא לדוסייה ----- */
+const LBL = {
+  experience:{ new:'< 1 YEAR', some:'1–3 YEARS', vet:'3+ YEARS', none:'NEVER TRADED' },
+  week:{ profit:'ENDED IN PROFIT', loss:'ENDED IN LOSS', flat:'BROKE EVEN' },
+  act:{ buy:'WOULD BUY', sell:'WOULD SELL', wait:'WOULD WAIT' },
+  hope:{ sharp:'A SHARP RISE', gentle:'A GENTLE RISE', nocare:"DOESN'T CARE" },
+  fear:{ lose:'LOSING MONEY', miss:'MISSING OUT', wrong:'BEING WRONG' }
+};
+function lbl(group, v, dash='—'){ return (v!=null && LBL[group] && LBL[group][v]) ? LBL[group][v] : dash; }
+function escHtml(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function kvRow(k, v, cls){
+  return '<div class="kv-row'+((''+v).length>16?' full':'')+'"><span class="kv-k">'+escHtml(k)+'</span>'+
+         '<span class="kv-v'+(cls?' '+cls:'')+'">'+escHtml(v)+'</span></div>';
+}
+function renderKV(id, rows){ document.getElementById(id).innerHTML = rows.join(''); }
+
+/* מציב את דיוקן הזהות (וידאו/תמונה מותאם לשם) בתוך אלמנט הדוסייה */
+function setPortrait(id, media){
+  const box=document.getElementById(id); box.innerHTML='';
+  if(media && media.src){
+    if(media.type==='video'){
+      const v=document.createElement('video');
+      v.muted=true; v.loop=false; v.autoplay=false; v.controls=false; v.playsInline=true;
+      v.preload='auto'; v.setAttribute('playsinline',''); v.setAttribute('muted','');
+      // הצגת הפריים האחרון בלבד + חסימה קשיחה של כל ניגון → תמונה קפואה, בלי סיבוב
+      v.src=media.src;
+      const freeze=()=>{ try{ v.pause(); }catch(e){} };
+      const gotoEnd=()=>{ try{ v.pause(); if(v.duration && isFinite(v.duration)) v.currentTime=Math.max(0, v.duration-0.05); }catch(e){} };
+      v.addEventListener('loadedmetadata',gotoEnd);
+      v.addEventListener('loadeddata',gotoEnd);
+      v.addEventListener('play',freeze);   // אם משהו מנסה לנגן — עוצרים מיד
+      box.appendChild(v);
+    } else {
+      const img=document.createElement('img'); img.src=media.src; img.alt=''; box.appendChild(img);
+    }
+  } else if(State.mainShot){
+    const img=document.createElement('img'); img.src=State.mainShot; img.alt=''; box.appendChild(img);
+  } else {
+    const d=document.createElement('div'); d.className='sum-img empty'; d.textContent='NO PORTRAIT'; box.appendChild(d);
+  }
+}
+
+async function showSummary(){
+  const S=TRADE.subject||subjectDisplay();
+  document.getElementById('sum-name').textContent = State.name ? State.name : 'ANONYMOUS SUBJECT';
+  document.getElementById('sum-caseid').textContent = 'CASE #'+String((nameSeed()*9973|0)%9000+1000);
+
+  /* ---- A · זהות ---- */
+  setPortrait('sum-portrait', State.portrait);
+  renderKV('sum-identity', [
+    kvRow('NAME', State.name || 'ANONYMOUS', 'amber'),
+    kvRow('AGE', State.age || '—'),
+    kvRow('EXPERIENCE', lbl('experience', State.experience)),
+    kvRow('THIS WEEK', lbl('week', State.week))
+  ]);
+
+  /* ---- B · נתונים יבשים (מה ענה) ---- */
+  renderKV('sum-intake', [
+    kvRow('SUBJECT', S, 'amber'),
+    kvRow('GUT IMPULSE', lbl('act', State.act)),
+    kvRow('HOPES FOR', lbl('hope', State.hope)),
+    kvRow('AFRAID OF', lbl('fear', State.fear)),
+    kvRow('SELF-CONFIDENCE', (State.confidence??50)+'%', (State.confidence??50)>=60?'':(State.confidence??50)>=40?'hold':'warn')
+  ]);
+
+  /* ---- C · תוצאת הסריקה + מה אני חושב ---- */
+  const a = buildScanAnalysis();
+  const bioRows = [
+    kvRow('SELF-BELIEF', a.cs+'%', a.cs>=60?'':a.cs>=45?'hold':'warn'),
+    kvRow('STILLNESS', a.still+'%'),
+    kvRow('EXPRESSION', (State.expression||'GUARDED').toUpperCase()),
+    kvRow('AURA', State.auraColor?State.auraColor.n.toUpperCase():'—', 'amber'),
+    kvRow('EYE CONTACT', State.eyeContact!=null?State.eyeContact+'%':'—'),
+    kvRow('BLINK LATENCY', State.blinkLatency!=null?State.blinkLatency+' ms':'—'),
+    kvRow('BLINK COUNT', State.blinks??0),
+    kvRow('GAZE', State.gazeAway?'DRIFTING':'HELD', State.gazeAway?'warn':'')
+  ];
+  renderKV('sum-bio', bioRows);
+  const bv=scanWarningVerdict(a);
+  document.getElementById('sum-bio-verdict').innerHTML='<b>What I think:</b> '+escHtml(bv.en);
+
+  /* ---- D · תוצאות המבחנים ---- */
+  const vs=State.voiceStress, load=State.cognitiveLoad;
+  renderKV('sum-tests', [
+    kvRow('VOICE STRESS', vs!=null?vs+'%':'—', vs==null?'':vs<45?'':vs<66?'hold':'warn'),
+    kvRow('VOCAL RANGE', State.vocalRange!=null?State.vocalRange+' notes':'—'),
+    kvRow('PEAK VOLUME', State.peakDb!=null?State.peakDb+' dB':'—'),
+    kvRow('MENTAL LOAD', load!=null?load+'%':'—', load==null?'':load<40?'':load<66?'hold':'warn'),
+    kvRow('REACTION', State.reactionMs!=null?State.reactionMs+' ms':'—'),
+    kvRow('ACCURACY', State.hitRate!=null?State.hitRate+'%':'—')
+  ]);
+
+  /* ציונים מסכמים */
+  renderSummaryScores();
+
+  /* ---- E · הקלפים ---- */
+  const cards = State.cards || buildCards();
+  document.getElementById('sum-cards').innerHTML = cards.map(c=>
+    '<div class="sum-card"><div class="sc-img">'+
+      (c.img?'<img src="'+escHtml(c.img)+'" alt="'+escHtml(c.n)+'" onerror="this.parentNode.textContent=\''+escHtml(c.s||'?')+'\'">':escHtml(c.s||'?'))+
+    '</div><div class="sc-lbl">'+escHtml(c.lbl)+'</div><div class="sc-name">'+escHtml(c.n)+'</div></div>'
+  ).join('');
+
+  /* ---- F · המסחר / כמה הרווחת ---- */
+  document.getElementById('sum-trade').innerHTML =
+    S+' · '+TRADE.action+' · '+nice(TRADE.size)+'<br>$'+TRADE.entry.toFixed(2)+' → $'+TRADE.close.toFixed(2)+
+    ' ('+(TRADE.pct>=0?'+':'')+TRADE.pct.toFixed(2)+'%)';
+  const plEl=document.getElementById('sum-pl');
+  plEl.textContent=(TRADE.pl>=0?'+':'')+fmtMoney(TRADE.pl); plEl.className='result-pl '+TRADE.outcome;
+  const vEl=document.getElementById('sum-verdict'); vEl.className='result-verdict '+TRADE.outcome;
+  vEl.textContent = TRADE.action==='HOLD' ? 'STAYED OUT' : (TRADE.outcome==='win'?'PROFIT':(TRADE.outcome==='loss'?'LOSS':'FLAT'));
+
+  const note = TRADE.action==='HOLD'
+    ? 'You watched, and stayed out. The room read you — the market was never the point.'
+    : (TRADE.outcome==='win' ? 'You walked out ahead. Remember: the room read you, not the future.'
+       : TRADE.outcome==='loss' ? 'You walked out behind. The room read you exactly — the market simply did not agree.'
+       : 'The market barely moved. The reading of you stands regardless.');
+  document.getElementById('sum-note').textContent = note;
+
+  /* בניית גיליון ההדפסה + הדפסה אוטומטית כשמגיעים לסיכום */
+  buildPrintSheet({ S, a, bv, cards, note });
+
+  show('screen-summary');
+  autoPrintDossier();
+  await speak((State.name?State.name+'. ':'')+'This was your session. '+note);
+}
+
+/* ----- בניית גיליון ההדפסה (שחור על לבן, טקסט נקי למדפסת התרמית) ----- */
+function buildPrintSheet(ctx){
+  const S=ctx.S, a=ctx.a, bv=ctx.bv, cards=ctx.cards||[];
+  const pr=(k,v)=> '<div class="pr"><span class="pk">'+escHtml(k)+'</span><span class="pv">'+escHtml(v)+'</span></div>';
+  const now=new Date();
+  const dt=now.toLocaleDateString('en-GB')+' '+now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  const caseId=document.getElementById('sum-caseid').textContent||'';
+  const dc=computeDecisionConfidence(), risk=computeRisk(), beh=computeBehavior();
+  const plStr=(TRADE.pl>=0?'+':'')+fmtMoney(TRADE.pl);
+  const outcome = TRADE.action==='HOLD' ? 'STAYED OUT' : (TRADE.outcome==='win'?'PROFIT':(TRADE.outcome==='loss'?'LOSS':'FLAT'));
+  let h='';
+  h+='<div class="p-title">STO(MA)CK TERMINAL</div>';
+  h+='<div class="p-sub">SESSION DOSSIER · '+escHtml(caseId)+' · '+escHtml(dt)+'</div>';
+  h+='<div class="p-rule"></div>';
+
+  h+='<div class="p-h">IDENTITY</div>';
+  h+='<div class="p-id"><div class="p-portrait-wrap" id="p-portrait-wrap"></div><div class="p-idkv">';
+  h+=pr('NAME', State.name||'ANONYMOUS');
+  h+=pr('AGE', State.age||'—');
+  h+=pr('EXPERIENCE', lbl('experience', State.experience));
+  h+=pr('THIS WEEK', lbl('week', State.week));
+  h+='</div></div>';
+
+  h+='<div class="p-h">WHAT YOU TOLD ME</div>';
+  h+=pr('SUBJECT', S);
+  h+=pr('GUT IMPULSE', lbl('act', State.act));
+  h+=pr('HOPES FOR', lbl('hope', State.hope));
+  h+=pr('AFRAID OF', lbl('fear', State.fear));
+  h+=pr('SELF-CONFIDENCE', (State.confidence??50)+'%');
+
+  h+='<div class="p-h">BIOMETRIC READOUT</div>';
+  h+=pr('SELF-BELIEF', a.cs+'%');
+  h+=pr('STILLNESS', a.still+'%');
+  h+=pr('EXPRESSION', (State.expression||'GUARDED').toUpperCase());
+  h+=pr('AURA', State.auraColor?State.auraColor.n.toUpperCase():'—');
+  h+=pr('EYE CONTACT', State.eyeContact!=null?State.eyeContact+'%':'—');
+  h+=pr('BLINK LATENCY', State.blinkLatency!=null?State.blinkLatency+' ms':'—');
+  h+=pr('BLINK COUNT', State.blinks??0);
+  h+=pr('GAZE', State.gazeAway?'DRIFTING':'HELD');
+  h+='<div class="p-note">What I think: '+escHtml(bv.en)+'</div>';
+
+  h+='<div class="p-h">STRESS & COGNITION TESTS</div>';
+  h+=pr('VOICE STRESS', State.voiceStress!=null?State.voiceStress+'%':'—');
+  h+=pr('VOCAL RANGE', State.vocalRange!=null?State.vocalRange+' notes':'—');
+  h+=pr('PEAK VOLUME', State.peakDb!=null?State.peakDb+' dB':'—');
+  h+=pr('MENTAL LOAD', State.cognitiveLoad!=null?State.cognitiveLoad+'%':'—');
+  h+=pr('REACTION', State.reactionMs!=null?State.reactionMs+' ms':'—');
+  h+=pr('ACCURACY', State.hitRate!=null?State.hitRate+'%':'—');
+
+  h+='<div class="p-h">SCORES</div>';
+  h+=pr('DECISION CONFIDENCE', dc+'%');
+  h+=pr('RISK ASSESSMENT', risk.label+' ('+risk.r+'%)');
+  h+=pr('BEHAVIORAL SCORE', beh.grade+' · '+beh.s);
+  if(State.wheelResult) h+=pr('WHEEL OF FATE', State.wheelResult);
+
+  h+='<div class="p-h">THE CARDS</div>';
+  h+='<div class="p-cards">';
+  cards.forEach(c=>{
+    h+='<div class="p-card">'+
+       (c.img?'<img class="p-cardimg" src="'+escHtml(c.img)+'" alt="">':'<div class="p-cardimg">'+escHtml(c.s||'?')+'</div>')+
+       '<div class="p-cardlbl">'+escHtml(c.lbl)+'</div><div class="p-cardname">'+escHtml(c.n)+'</div></div>';
+  });
+  h+='</div>';
+
+  h+='<div class="p-h">THE TRADE</div>';
+  h+=pr('SIGNAL', S+' · '+TRADE.action);
+  h+=pr('SIZE', nice(TRADE.size));
+  h+=pr('ENTRY → CLOSE', '$'+TRADE.entry.toFixed(2)+' → $'+TRADE.close.toFixed(2)+' ('+(TRADE.pct>=0?'+':'')+TRADE.pct.toFixed(2)+'%)');
+  h+='<div class="p-big">'+escHtml(plStr)+' · '+escHtml(outcome)+'</div>';
+
+  h+='<div class="p-rule"></div>';
+  h+='<div class="p-foot">The room read you — not the future.<br>STO(MA)CK TERMINAL</div>';
+  document.getElementById('print-sheet').innerHTML=h;
+}
+
+/* לוכד את הפריים הקפוא של הדיוקן מהמסך וממיר אותו לתמונה שניתן להדפיס */
+function capturePortraitDataURL(){
+  const box=document.getElementById('sum-portrait'); if(!box) return null;
+  const v=box.querySelector('video');
+  if(v){
+    try{
+      const cw=v.videoWidth||360, ch=v.videoHeight||480;
+      const cvs=document.createElement('canvas'); cvs.width=cw; cvs.height=ch;
+      cvs.getContext('2d').drawImage(v,0,0,cw,ch);
+      return cvs.toDataURL('image/png');
+    }catch(e){ return null; }
+  }
+  const img=box.querySelector('img'); if(img) return img.src;
+  return null;
+}
+function waitPortraitReady(ms){
+  return new Promise(res=>{
+    const box=document.getElementById('sum-portrait');
+    const v=box && box.querySelector('video');
+    if(!v){ res(); return; }
+    const t0=Date.now();
+    (function chk(){
+      if((v.readyState>=2 && v.videoWidth>0) || Date.now()-t0>ms){ res(); return; }
+      setTimeout(chk,120);
+    })();
+  });
+}
+
+let _printedThisSession=false;
+async function autoPrintDossier(){
+  if(_printedThisSession) return; _printedThisSession=true;
+  const wrap=document.getElementById('p-portrait-wrap');
+  // אם לאדם המזוהה יש דיוקן הדפסה מוכן (שחור-לבן) — משתמשים בו; אחרת לוכדים פריים מהווידאו
+  const printSrc = State.portrait && State.portrait.printSrc;
+  if(wrap && printSrc){
+    wrap.innerHTML='<img class="p-portrait ready-bw" src="'+printSrc+'" alt="">';
+  } else {
+    await waitPortraitReady(2000);             // ממתין שהפריים הקפוא יהיה מוכן
+    const url=capturePortraitDataURL();
+    if(wrap && url){ wrap.innerHTML='<img class="p-portrait" src="'+url+'" alt="">'; }
+  }
+  setTimeout(()=>{ try{ window.print(); }catch(e){} }, 350);
+}
+
+/* ----- ציוני הסיכום: ביטחון החלטה · הערכת סיכון · ציון התנהגותי ----- */
+function computeDecisionConfidence(){
+  const said=State.confidence??50;
+  const face=(typeof scanConfidenceScore==='function')?scanConfidenceScore():50;
+  const voice=100-(State.voiceStress??50);
+  const cog=100-(State.cognitiveLoad??50);
+  return Math.max(3,Math.min(97,Math.round(said*0.25+face*0.30+voice*0.20+cog*0.25)));
+}
+function computeRisk(){
+  let r=40;
+  r += ((State.cognitiveLoad??50)-50)*0.4;
+  r += ((State.voiceStress??50)-50)*0.4;
+  r -= ((State.steadiness??50)-50)*0.3;
+  if(State.hope==='sharp') r+=12;
+  if(State.fear==='miss') r+=10;
+  if(State.fear==='lose') r-=6;
+  if(State.gazeAway) r+=8;
+  if((State.blinks??0)>=8) r+=6;
+  r += ((TRADE.size||0)/50000)*20;
+  r=Math.max(3,Math.min(97,Math.round(r)));
+  const label = r<30?'LOW' : r<55?'MODERATE' : r<78?'HIGH' : 'EXTREME';
+  return { r, label };
+}
+function computeBehavior(){
+  const still=State.steadiness??50;
+  const eye=State.eyeContact??60;
+  const latency=State.blinkLatency==null?60:Math.min(100,State.blinkLatency/30);
+  const voice=100-(State.voiceStress??50);
+  const cog=100-(State.cognitiveLoad??50);
+  const s=Math.max(3,Math.min(99,Math.round(still*0.28+eye*0.18+latency*0.14+voice*0.20+cog*0.20)));
+  const grade = s>=85?'A' : s>=70?'B' : s>=55?'C' : s>=40?'D' : 'F';
+  return { s, grade };
+}
+function renderSummaryScores(){
+  const dc=computeDecisionConfidence();
+  const risk=computeRisk();
+  const beh=computeBehavior();
+
+  const dcV=document.getElementById('ss-decision'), dcB=document.getElementById('ss-decision-bar');
+  dcV.textContent=dc+'%'; dcB.style.width=dc+'%';
+  dcV.className='ss-v '+(dc>=60?'':(dc>=40?'hold':'sell'));
+
+  const rkV=document.getElementById('ss-risk'), rkB=document.getElementById('ss-risk-bar');
+  rkV.textContent=risk.label; rkB.style.width=risk.r+'%';
+  rkV.className='ss-v '+(risk.r<30?'':(risk.r<55?'hold':'sell'));
+  rkB.style.background = risk.r<30?'var(--green)':(risk.r<55?'var(--hold)':'var(--sell)');
+
+  const bhV=document.getElementById('ss-behavior'), bhB=document.getElementById('ss-behavior-bar');
+  bhV.textContent=beh.grade+' · '+beh.s; bhB.style.width=beh.s+'%';
+  bhV.className='ss-v '+(beh.s>=70?'':(beh.s>=55?'hold':'sell'));
+  bhB.style.background = beh.s>=70?'var(--green)':(beh.s>=55?'var(--hold)':'var(--sell)');
+}
+
+document.getElementById('btn-accept').addEventListener('click',()=>respondChoice(true));
+document.getElementById('btn-refuse').addEventListener('click',()=>respondChoice(false));
+document.getElementById('btn-restart').addEventListener('click',()=>{ holoCue('reset'); setTimeout(()=>location.reload(),300); });
+document.getElementById('btn-restart2').addEventListener('click',()=>showSummary());
+document.getElementById('btn-restart3').addEventListener('click',()=>{ holoCue('reset'); setTimeout(()=>location.reload(),300); });
+
+/* ----- שליטה ----- */
+document.getElementById('btn-mute').addEventListener('click',(e)=>{
+  State.muted=!State.muted; if(State.muted)speechSynthesis.cancel();
+  if(ambientGain&&audioCtx)ambientGain.gain.value=State.muted?0:0.045;
+  e.target.textContent=State.muted?'[ ] sound':'[x] mute';
+});
+document.getElementById('btn-skip').addEventListener('click',()=>{
+  stopListening(); const a=document.querySelector('.screen.active').id;
+  if(a==='screen-identify'){ document.getElementById('btn-identify-next').click(); }
+  else if(a==='screen-subject'&&!State.subject){ chooseSubject('QQQ'); }
+  else if(a==='screen-questions'){ const q=QUESTIONS[qIndex]; if(q.type==='slider'){State.confidence=+slI.value;next();} else answerQuestion(q.id,q.opts[0].v); }
+  else if(a==='screen-body'){ auraReset(); State.steadiness=60; State.auraTurbulence=40; State.auraColor=AURA_COLORS[2]; State.expression='Guarded'; State.gazeAway=false; State.blinks=3; State.blinkLatency=1400; State.eyeContact=70; startVoice(); }
+  else if(a==='screen-voice'){ stopVoice(); if(State.voiceStress==null){ State.voiceStress=45; State.vocalRange=6; State.peakDb=60; State.voiceReadout='—'; } startCognitive(); }
+  else if(a==='screen-cognitive'){ cogStop(); if(State.cognitiveLoad==null){ State.cognitiveLoad=50; State.reactionMs=900; State.hitRate=70; } startWheel(); }
+  else if(a==='screen-wheel'){ revealRitual(); }
+});
+function wait(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+// אפקט הקלדה — כותב את הטקסט אות אחר אות, ברצף, תוך שמירה על תגי HTML (כמו <span class="em">)
+function typeHTML(el, html, cps){
+  return new Promise(resolve=>{
+    // פירוק הטקסט לאסימונים: תג HTML שלם = אסימון אחד, אחרת תו בודד
+    const tokens=[]; let i=0;
+    while(i<html.length){
+      if(html[i]==='<'){ const j=html.indexOf('>',i); const end=(j===-1?html.length-1:j); tokens.push(html.slice(i,end+1)); i=end+1; }
+      else { tokens.push(html[i]); i++; }
+    }
+    const delay=1000/(cps||42);
+    let out='', k=0;
+    el.classList.add('typing');
+    (function step(){
+      if(k>=tokens.length){ el.classList.remove('typing'); resolve(); return; }
+      const tok=tokens[k++]; out+=tok;
+      el.innerHTML=out;
+      setTimeout(step, tok.length>1 ? 0 : delay); // תגים נכנסים מיידית, תווים בקצב
+    })();
+  });
+}
+</script>
+</body>
+</html>

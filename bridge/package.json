@@ -1,0 +1,10 @@
+{
+  "name": "hologram-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local bridge between the STO(MA)CK site and the Z3L hologram fan",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
