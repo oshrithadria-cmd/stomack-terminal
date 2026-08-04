@@ -6,5 +6,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
+  },
+  "dependencies": {
+    "mqtt": "^5.15.2"
   }
 }

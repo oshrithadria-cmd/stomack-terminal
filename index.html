@@ -10,6 +10,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Doto:wght@400;700;900&family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
+<!-- ספריית MQTT לערוץ זמן-אמת אל "מחשב המרכז" (הולוגרמה/מקרן). נטענת דחוי כדי לא לעכב טעינה. -->
+<script defer src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <style>
   :root {
     --bg-0: #03070a;
@@ -1249,6 +1251,36 @@ const HOLO_CUES = {
   summary:  { power:'on'  },   // עמוד הסיכום
   reset:    { power:'off' },   // חזרה למסך הפתיחה
 };
+/* ---- ערוץ זמן-אמת (MQTT) אל "מחשב המרכז" באירוע ----
+   כך הפקודות מהטלפון (שנפתח דרך הברקוד) מגיעות למאוורר בזמן אמת, דרך האינטרנט.
+   הברוקר כאן ציבורי (בלי חשבון) כדי להתחיל מהר; בהמשך אפשר להחליף לפרטי בשורה אחת.
+   ה-topic חייב להיות זהה למה שב-bridge/holoBus.js. */
+const RT = {
+  url:      'wss://broker.hivemq.com:8884/mqtt',
+  topic:    'stomack/oshrit-h7k2/v1/cue',
+  clientId: 'stomack-app-'+Math.random().toString(16).slice(2,10),
+};
+let _rtClient=null, _rtReady=false, _rtPending=null;
+function rtInit(){
+  try{
+    if(_rtClient || !window.mqtt) return;
+    _rtClient = window.mqtt.connect(RT.url, { clientId:RT.clientId, reconnectPeriod:3000, connectTimeout:8000, clean:true });
+    _rtClient.on('connect', ()=>{ _rtReady=true; if(_rtPending){ try{_rtClient.publish(RT.topic,_rtPending,{qos:0});}catch(e){} _rtPending=null; } });
+    _rtClient.on('error', ()=>{});
+    _rtClient.on('close', ()=>{ _rtReady=false; });
+  }catch(e){}
+}
+function rtPublish(obj){
+  try{
+    const payload=JSON.stringify(obj);
+    if(!_rtClient) rtInit();
+    if(_rtClient && _rtReady){ _rtClient.publish(RT.topic, payload, {qos:0}); }
+    else { _rtPending=payload; }   // יישלח מיד ברגע שהחיבור ייפתח
+  }catch(e){}
+}
+if(document.readyState==='loading') window.addEventListener('DOMContentLoaded', rtInit);
+window.addEventListener('load', rtInit);
+
 function holoSend(path, body){
   try{
     const ctl=('AbortController' in window)?new AbortController():null;
@@ -1262,6 +1294,7 @@ function holoSend(path, body){
 /* מפעיל "רגע". opts אופציונלי לדריסה (למשל holoCue('identify',{name:State.name})). */
 function holoCue(cue, opts){
   const a = Object.assign({}, HOLO_CUES[cue]||{}, opts||{});
+  rtPublish({ t:'cue', cue:cue, action:a, ts:Date.now() }); // ← זמן-אמת אל מחשב המרכז (הנתיב שעובד דרך הברקוד)
   if(a.name!==undefined && a.name!==null){ holoSend('/play',{name:a.name}); return; }
   if(a.video!==undefined && a.video!==null){ holoSend('/play',{video:a.video}); return; }
   if(a.ascii){ holoSend('/command',{ascii:a.ascii}); return; }

@@ -13,6 +13,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const fan = require('./fanProtocol');
+const holoBus = require('./holoBus');
 
 const PORT = 8777;
 const HOST = '127.0.0.1';
@@ -135,4 +136,6 @@ fan.connect().then(()=>{
     console.log(`[bridge] listening on http://${HOST}:${PORT}  (MOCK=${fan.CONFIG.MOCK})`);
     console.log('[bridge] endpoints: GET /health, GET /videos, POST /play {name|video}, POST /power {on}, POST /command {ascii}, POST /stop');
   });
+  // מאזין לזמן-אמת: פקודות מהטלפון (דרך הברקוד) -> מאוורר
+  holoBus.start(fan, resolveVideo);
 });
