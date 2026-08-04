@@ -1046,10 +1046,13 @@ const State = {
 function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); mirror(id); }
 
 /* =========================================================
-   שידור בלתי-נראה למקרן — משדר בזמן אמת את המסך הפעיל ותוכנו,
-   כך שדף המקרן (display.html) מציג בדיוק מה שקורה על הטלפון.
-   אינו משנה דבר בחוויית המבקר. נכשל בשקט אם אין רשת/ערוץ.
+   מצב "מקרן" — אותה אפליקציה בדיוק, רק שהיא עוקבת אחרי הטלפון.
+   פותחים את אותה כתובת עם ?display=1 והמקרן מציג בזמן אמת את
+   בדיוק אותם מסכים שהמבקר רואה בטלפון. אינו משנה דבר במצב הרגיל.
    ========================================================= */
+const DISPLAY = /[?&#]display\b/.test(location.search + location.hash);
+
+/* --- צד הטלפון: משדר את המסך הפעיל ותוכנו (שקוף למבקר) --- */
 function mirrorSnapshot(){
   let nameInput=''; try{ const el=document.getElementById('f-name'); if(el) nameInput=el.value||''; }catch(e){}
   let mediaSrc=null, mediaType=null;
@@ -1060,7 +1063,37 @@ function mirrorSnapshot(){
   return { name:State.name, nameInput:nameInput, mediaSrc:mediaSrc, mediaType:mediaType, html:html, state:s };
 }
 function mirror(screen){
+  if(DISPLAY) return;                 // המקרן עצמו לא משדר בחזרה
   try{ rtPublish(Object.assign({ t:'mirror', screen:screen, ts:Date.now() }, mirrorSnapshot())); }catch(e){}
+}
+
+/* --- צד המקרן: מקבל שידור ומציג את אותו מסך בדיוק --- */
+function applyMirror(m){
+  try{
+    if(!m || !m.screen) return;
+    const el = document.getElementById(m.screen);
+    if(!el) return;
+    if(typeof m.html === 'string'){
+      // אל תאתחל וידאו זהה של אותו אדם (מונע ריצוד)
+      const hasVid = !!el.querySelector('video');
+      const sameSrc = el.getAttribute('data-mirror-src') === (m.mediaSrc || '');
+      if(!(m.screen==='screen-identify' && hasVid && sameSrc)){
+        el.innerHTML = m.html;
+        el.setAttribute('data-mirror-src', m.mediaSrc || '');
+        el.querySelectorAll('video').forEach(v=>{
+          try{ v.style.clipPath=''; v.muted=true; v.setAttribute('playsinline',''); v.setAttribute('autoplay',''); const p=v.play(); if(p&&p.catch)p.catch(()=>{}); }catch(e){}
+        });
+      }
+    }
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    el.classList.add('active');
+  }catch(e){}
+}
+
+if(DISPLAY){
+  try{ State.muted = true; }catch(e){}
+  document.documentElement.classList.add('display-mode');
+  try{ const st=document.createElement('style'); st.textContent='html.display-mode, html.display-mode *{cursor:none !important;}'; document.head.appendChild(st); }catch(e){}
 }
 
 /* ----- מחווני שלב ----- */
@@ -1288,7 +1321,11 @@ function rtInit(){
   try{
     if(_rtClient || !window.mqtt) return;
     _rtClient = window.mqtt.connect(RT.url, { clientId:RT.clientId, reconnectPeriod:3000, connectTimeout:8000, clean:true });
-    _rtClient.on('connect', ()=>{ _rtReady=true; if(_rtPending){ try{_rtClient.publish(RT.topic,_rtPending,{qos:0});}catch(e){} _rtPending=null; } });
+    _rtClient.on('connect', ()=>{ _rtReady=true;
+      if(DISPLAY){ try{ _rtClient.subscribe(RT.topic); }catch(e){} }
+      if(_rtPending){ try{_rtClient.publish(RT.topic,_rtPending,{qos:0});}catch(e){} _rtPending=null; }
+    });
+    if(DISPLAY){ _rtClient.on('message', (t,buf)=>{ let m; try{ m=JSON.parse(buf.toString('utf8')); }catch(e){ return; } if(m && m.t==='mirror') applyMirror(m); }); }
     _rtClient.on('error', ()=>{});
     _rtClient.on('close', ()=>{ _rtReady=false; });
   }catch(e){}
@@ -1381,6 +1418,7 @@ async function renderQuestion(){
       optWrap.appendChild(b);
     });
   }
+  try{ mirror('screen-questions'); }catch(e){}
   await speak(q.say);
 }
 async function answerQuestion(id,val){ State[id]=val; await wait(250); next(); }
@@ -2648,7 +2686,7 @@ async function revealRitual(){
   document.getElementById('verdict-word-he').textContent=''; document.getElementById('reveal-text').innerHTML=''; document.getElementById('closer-text').innerHTML='';
 
   await speak(State.name ? (State.name + ', the cards are turning.') : 'The cards are turning. Witness them.');
-  for(let i=0;i<3;i++){ await wait(1200); document.getElementById('card-'+i).classList.add('flipped'); await speak(cards[i].n); await wait(700); }
+  for(let i=0;i<3;i++){ await wait(1200); document.getElementById('card-'+i).classList.add('flipped'); try{ mirror('screen-ritual'); }catch(e){} await speak(cards[i].n); await wait(700); }
   // השהייה ארוכה כדי לראות את שלושת הקלפים במלואם לפני שהפסק־דין מופיע
   await wait(4200);
 
@@ -2667,6 +2705,7 @@ async function revealRitual(){
   const closerEn='The search for a sign is the decision itself.';
   const closerEl=document.getElementById('closer-text');
   await Promise.all([ typeHTML(closerEl, closerEn, 40), speak(closerEn) ]);
+  try{ mirror('screen-ritual'); }catch(e){}
   await wait(300);
   document.getElementById('verdict-final').style.display='none';
   const ch=document.getElementById('verdict-choice'); ch.style.display='flex';

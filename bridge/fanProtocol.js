@@ -76,21 +76,58 @@ function sendAscii(ascii, cmdType = CMD.POWER){
 }
 
 async function powerOn(){  log('powerOn');  return sendFrame(buildFrame(CMD.POWER, 'Power=1')); }
-async function powerOff(){ log('powerOff'); return sendFrame(buildFrame(CMD.POWER, 'Power=0')); }
+async function powerOff(){ stopHold(); log('powerOff'); return sendFrame(buildFrame(CMD.POWER, 'Power=0')); }
 
-/**
- * play(file) — מנגן קובץ מסוים ונועל עליו.
- * file = שם הקובץ כפי שהוא במאוורר (למשל "sharon.mp4"). אם ריק/חסר — רק מוודא שהמאוורר דלוק.
- * מוודא קודם שהמאוורר דלוק, ואז מגדיר את הסרטון.
+/*
+ * "הצמדה" (keepalive) — הבעיה: המאוורר לא באמת "נועל" על סרטון; הוא מנגן playlist
+ * ומתקדם לבד לסרטון הבא. פקודת DisplayImageId רק *קופצת* לסרטון מסוים אבל לא עוצרת
+ * את ההתקדמות. הפתרון: כל עוד רוצים אדם מסוים, שולחים את הפקודה שוב ושוב כל ~1.2 שנ'
+ * כך שאם המאוורר "ברח" לסרטון אחר — הוא נחטף מיד חזרה לאדם הנכון.
  */
-async function play(file){
-  if (!file){ log('play (no file) -> ensure ON'); return powerOn(); }
-  log('play ->', file);
-  await sendFrame(buildFrame(CMD.POWER, 'Power=1'));         // ודא דלוק
-  return sendFrame(buildFrame(CMD.PLAY, 'DisplayImageId=' + file)); // נגן ונעל
+let holdFile = null;
+let holdTimer = null;
+const HOLD_INTERVAL_MS = 2500;
+
+function stopHold(){
+  if (holdTimer){ clearInterval(holdTimer); holdTimer = null; }
+  holdFile = null;
 }
 
-async function stop(){ return powerOff(); }
+async function assertFile(file){
+  // ודא דלוק ואז קבע את הסרטון (שתי מסגרות נפרדות)
+  await sendFrame(buildFrame(CMD.POWER, 'Power=1'));
+  return sendFrame(buildFrame(CMD.PLAY, 'DisplayImageId=' + file));
+}
+
+/**
+ * play(file) — מצמיד את המאוורר לסרטון מסוים ומחזיק אותו שם.
+ * file = שם הקובץ כפי שהוא במאוורר (למשל "sharon.mp4"). אם ריק/חסר — רק מוודא שהמאוורר דלוק
+ *        (ומפסיק כל הצמדה קודמת).
+ */
+async function play(file){
+  if (!file){ stopHold(); log('play (no file) -> ensure ON'); return powerOn(); }
+  if (holdFile === file && holdTimer){ log('play -> (already holding)', file); return { held:true, file }; }
+  log('play (hold) ->', file);
+  holdFile = file;
+  // אכיפה מיידית פעם אחת (המאוורר נעול על סרטון יחיד → מספיק לקפוץ אליו)
+  await assertFile(file);
+  if (holdTimer) clearInterval(holdTimer);
+  // "רשת ביטחון": בודקים אחת לכמה שניות; שולחים שוב *רק אם* המאוורר ברח לסרטון אחר.
+  // כך הסרטון מנגן חלק (לא מתאתחל כל הזמן) אבל אם בכל זאת יש drift — נחטף חזרה.
+  holdTimer = setInterval(async ()=>{
+    if (!holdFile){ clearInterval(holdTimer); holdTimer = null; return; }
+    try{
+      const info = await getInfo();
+      if (info && info.current && info.current !== holdFile){
+        log('hold: drift ->', info.current, '=> re-assert', holdFile);
+        await assertFile(holdFile);
+      }
+    }catch{}
+  }, HOLD_INTERVAL_MS);
+  return { held:true, file };
+}
+
+async function stop(){ stopHold(); return powerOff(); }
 
 /** קורא את מצב המאוורר; מחזיר {current, power, raw}. */
 async function getInfo(){
@@ -106,4 +143,4 @@ async function connect(){
   return { ok:true, mock: CONFIG.MOCK };
 }
 
-module.exports = { CONFIG, CMD, connect, play, stop, powerOn, powerOff, sendAscii, buildFrame, getInfo };
+module.exports = { CONFIG, CMD, connect, play, stop, powerOn, powerOff, sendAscii, buildFrame, getInfo, stopHold };
