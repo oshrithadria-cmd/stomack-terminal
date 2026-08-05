@@ -1184,15 +1184,28 @@ if(DISPLAY){
   function _measureContent(){
     const a=document.querySelector('.screen.active'); if(!a) return null;
     const prev=document.body.style.transform; document.body.style.transform='none';   // מדידה במצב טבעי
-    let top=Infinity, bot=-Infinity, left=Infinity, right=-Infinity;
-    a.querySelectorAll(':scope > *').forEach(ch=>{
-      const cs=getComputedStyle(ch); if(cs.display==='none'||cs.visibility==='hidden') return;
-      const r=ch.getBoundingClientRect(); if(r.width===0 && r.height===0) return;
-      top=Math.min(top,r.top); bot=Math.max(bot,r.bottom); left=Math.min(left,r.left); right=Math.max(right,r.right);
-    });
-    document.body.style.transform=prev;
-    if(!isFinite(top)) return null;
-    return { w:right-left, h:bot-top };
+    try{
+      let top=Infinity, bot=-Infinity, left=Infinity, right=-Infinity;
+      a.querySelectorAll(':scope > *').forEach(ch=>{
+        const cs=getComputedStyle(ch); if(cs.display==='none'||cs.visibility==='hidden') return;
+        const r=ch.getBoundingClientRect(); if(r.width===0 && r.height===0) return;
+        top=Math.min(top,r.top); bot=Math.max(bot,r.bottom); left=Math.min(left,r.left); right=Math.max(right,r.right);
+      });
+      if(!isFinite(top)) return null;
+      let w=right-left, h=bot-top;
+      // שריון גובה לתמונת הדיוקן גם כשהיא מוסתרת, כדי שה-fit לא יקטין את המסך כשמופיע שם מזוהה
+      const nm=a.querySelector('.name-media');
+      if(nm && !nm.classList.contains('show')){
+        const savedDisplay=nm.style.display, savedVisibility=nm.style.visibility;
+        nm.style.visibility='hidden'; nm.style.display='block';
+        const mw=nm.offsetWidth||0;
+        nm.style.display=savedDisplay; nm.style.visibility=savedVisibility;
+        if(mw>0) h += (mw*4/3) + 12;   // ‎+12 ≈ מרווח/שוליים בין השדה לתמונה
+      }
+      return { w:w, h:h };
+    } finally {
+      document.body.style.transform=prev;
+    }
   }
   function _autoFit(){
     const c=_measureContent();
