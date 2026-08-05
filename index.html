@@ -1415,17 +1415,27 @@ window.addEventListener('load', rtInit);
 window.addEventListener('load', ()=>{ if(!DISPLAY){ setTimeout(()=>{ try{ mirror('screen-intro'); }catch(e){} }, 900); } });
 // טלפון: שידור רציף — מעדכן את המקרן על כל שינוי חי (הקלדה/סליידר/בחירה/אנימציה), לא רק במעברי מסך
 let _liveMirrorKey='';
+let _lastMirrorSent=0;
+function pushMirrorNow(force){
+  try{
+    if(DISPLAY) return;
+    const now=Date.now();
+    if(!force && now-_lastMirrorSent < 90) return;   // הגבלת קצב עדינה כדי לא להציף
+    const a=document.querySelector('.screen.active'); if(!a) return;
+    const snap=mirrorSnapshot();
+    const key=a.id+'|'+(snap.html||'')+'|'+(snap.mediaSrc||'');
+    if(!force && key===_liveMirrorKey) return;       // שדר רק כשמשהו באמת השתנה
+    _liveMirrorKey=key; _lastMirrorSent=now;
+    rtPublish(Object.assign({ t:'mirror', screen:a.id, ts:now }, snap), { retain:true });
+  }catch(e){}
+}
 if(!DISPLAY){
-  setInterval(()=>{
-    try{
-      const a=document.querySelector('.screen.active'); if(!a) return;
-      const snap=mirrorSnapshot();
-      const key=a.id+'|'+(snap.html||'')+'|'+(snap.mediaSrc||'');
-      if(key===_liveMirrorKey) return;      // שדר רק כשמשהו באמת השתנה
-      _liveMirrorKey=key;
-      rtPublish(Object.assign({ t:'mirror', screen:a.id, ts:Date.now() }, snap), { retain:true });
-    }catch(e){}
-  }, 450);
+  // שידור מיידי על כל אינטראקציה חיה — הקלדה/סליידר/בחירה/לחיצה
+  ['input','change','click','pointerdown','pointerup','keyup'].forEach(ev=>{
+    document.addEventListener(ev, ()=>pushMirrorNow(false), { passive:true, capture:true });
+  });
+  // רשת ביטחון: סריקה מהירה שתתפוס גם אנימציות/שינויים שאין להם אירוע
+  setInterval(()=>pushMirrorNow(false), 150);
 }
 
 function holoSend(path, body){
