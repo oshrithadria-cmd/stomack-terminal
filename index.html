@@ -1140,6 +1140,12 @@ function applyMirror(m){
     if(DISPLAY && window.__refit) window.__refit();   // התאם אוטומטית את הגודל למקרן אחרי כל עדכון תוכן
   }catch(e){}
 }
+/* מקרן: חזרה למסך הפתיחה כשאין שידור חי (רק הודעה ישנה "תקועה" מהברוקר) */
+function _projIntro(){ try{
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  const intro=document.getElementById('screen-intro'); if(intro) intro.classList.add('active');
+  if(window.__refit) window.__refit();
+}catch(e){} }
 
 if(DISPLAY){
   try{ State.muted = true; }catch(e){}
@@ -1481,7 +1487,16 @@ function rtInit(){
       if(DISPLAY){ try{ _rtClient.subscribe(RT.topic); }catch(e){} _dispStatus('LIVE', true); }
       if(_rtPending){ try{_rtClient.publish(RT.topic,_rtPending.p,_rtPending.o||{qos:0});}catch(e){} _rtPending=null; }
     });
-    if(DISPLAY){ _rtClient.on('message', (t,buf)=>{ let m; try{ m=JSON.parse(buf.toString('utf8')); }catch(e){ return; } if(m && m.t==='mirror') applyMirror(m); }); }
+    if(DISPLAY){ _rtClient.on('message', (t,buf,packet)=>{
+      let m; try{ m=JSON.parse(buf.toString('utf8')); }catch(e){ return; }
+      if(!m || m.t!=='mirror') return;
+      applyMirror(m);
+      // אם זו הודעה "תקועה" ישנה (retained) ואין שידור חי — לחזור למסך פתיחה אחרי 2.5ש'.
+      // שידור חי (לא-retained) מבטל את הטיימר, כך שסשן פעיל אף פעם לא נקטע.
+      const retained = !!(packet && packet.retain);
+      clearTimeout(window.__staleT);
+      if(retained){ window.__staleT=setTimeout(_projIntro, 2500); }
+    }); }
     _rtClient.on('reconnect', ()=>{ if(DISPLAY) _dispStatus('RECONNECT…', false); });
     _rtClient.on('error', ()=>{});
     _rtClient.on('close', ()=>{ _rtReady=false; if(DISPLAY) _dispStatus('OFFLINE', false); });
@@ -1500,6 +1515,8 @@ if(document.readyState==='loading') window.addEventListener('DOMContentLoaded', 
 window.addEventListener('load', rtInit);
 // טלפון: מכריז על מסך הפתיחה עם הטעינה, כדי שמקרן שנפתח יראה מיד את המצב הנוכחי
 window.addEventListener('load', ()=>{ if(!DISPLAY){ setTimeout(()=>{ try{ mirror('screen-intro'); }catch(e){} }, 900); } });
+// טלפון: אם הדף שוחזר מהזיכרון (bfcache) — לטעון נקי כדי לא לשדר בטעות אדם קודם (למשל "שרון")
+window.addEventListener('pageshow', (e)=>{ if(!DISPLAY && e.persisted){ try{ location.reload(); }catch(_){} } });
 // טלפון: שידור רציף — מעדכן את המקרן על כל שינוי חי (הקלדה/סליידר/בחירה/אנימציה), לא רק במעברי מסך
 let _liveMirrorKey='';
 let _lastMirrorSent=0;
