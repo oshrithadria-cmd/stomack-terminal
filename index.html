@@ -1112,13 +1112,15 @@ if(DISPLAY){
     st.textContent = [
       'html.display-mode, html.display-mode *{cursor:none !important;}',
       /* מגביר ניגודיות/בהירות/רוויה כדי לפצות על מקרן שמחוויר צבעים */
-      'html.display-mode body{filter:contrast(1.14) brightness(1.12) saturate(1.28) !important;}',
+      'html.display-mode body{filter:contrast(1.20) brightness(1.16) saturate(1.35) !important;}',
       /* טקסט בולט יותר: מעט מודגש + הילה/צל שמפרידים אותו מהרקע */
-      'html.display-mode .screen{font-weight:600 !important;}',
-      'html.display-mode h1,html.display-mode h2,html.display-mode h3,html.display-mode .title,html.display-mode .name{font-weight:800 !important;letter-spacing:.4px;text-shadow:0 0 22px rgba(255,255,255,.30),0 2px 10px rgba(0,0,0,.75) !important;}',
-      'html.display-mode p,html.display-mode span,html.display-mode li,html.display-mode .subtitle,html.display-mode label,html.display-mode button{text-shadow:0 1px 8px rgba(0,0,0,.80) !important;}',
+      'html.display-mode .screen{font-weight:700 !important;}',
+      'html.display-mode h1,html.display-mode h2,html.display-mode h3,html.display-mode .title,html.display-mode .name{font-weight:900 !important;letter-spacing:.5px;text-shadow:0 0 26px rgba(120,255,180,.35),0 2px 12px rgba(0,0,0,.85) !important;}',
+      'html.display-mode p,html.display-mode span,html.display-mode li,html.display-mode .subtitle,html.display-mode label,html.display-mode button{text-shadow:0 1px 10px rgba(0,0,0,.90) !important;}',
       /* קווי מתאר/כפתורים בולטים יותר */
-      'html.display-mode button,html.display-mode .btn,html.display-mode .card{filter:saturate(1.15) !important;box-shadow:0 0 24px rgba(0,0,0,.35) !important;}'
+      'html.display-mode .btn,html.display-mode .card{filter:saturate(1.2) !important;box-shadow:0 0 28px rgba(0,0,0,.40) !important;}',
+      /* בהקרנה: להסתיר את כפתורי דלג/השתק */
+      'html.display-mode #btn-skip,html.display-mode #btn-mute{display:none !important;}'
     ].join('\n');
     document.head.appendChild(st);
   }catch(e){}
