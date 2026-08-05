@@ -1500,15 +1500,9 @@ function rtInit(){
       if(DISPLAY){ try{ _rtClient.subscribe(RT.topic); }catch(e){} _dispStatus('LIVE', true); }
       if(_rtPending){ try{_rtClient.publish(RT.topic,_rtPending.p,_rtPending.o||{qos:0});}catch(e){} _rtPending=null; }
     });
-    if(DISPLAY){ _rtClient.on('message', (t,buf,packet)=>{
+    if(DISPLAY){ _rtClient.on('message', (t,buf)=>{
       let m; try{ m=JSON.parse(buf.toString('utf8')); }catch(e){ return; }
-      if(!m || m.t!=='mirror') return;
-      applyMirror(m);
-      // אם זו הודעה "תקועה" ישנה (retained) ואין שידור חי — לחזור למסך פתיחה אחרי 2.5ש'.
-      // שידור חי (לא-retained) מבטל את הטיימר, כך שסשן פעיל אף פעם לא נקטע.
-      const retained = !!(packet && packet.retain);
-      clearTimeout(window.__staleT);
-      if(retained){ window.__staleT=setTimeout(_projIntro, 2500); }
+      if(m && m.t==='mirror') applyMirror(m);
     }); }
     _rtClient.on('reconnect', ()=>{ if(DISPLAY) _dispStatus('RECONNECT…', false); });
     _rtClient.on('error', ()=>{});
