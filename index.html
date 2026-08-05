@@ -1111,16 +1111,20 @@ if(DISPLAY){
     const st=document.createElement('style');
     st.textContent = [
       'html.display-mode, html.display-mode *{cursor:none !important;}',
+      /* מבהיר את הירוק-העמום שמשמש להמון טקסטים דקים — שיֵראה בהקרנה */
+      'html.display-mode{--muted:#8ff0b6 !important;}',
       /* מגביר ניגודיות/בהירות/רוויה כדי לפצות על מקרן שמחוויר צבעים */
-      'html.display-mode body{filter:contrast(1.20) brightness(1.16) saturate(1.35) !important;}',
-      /* טקסט בולט יותר: מעט מודגש + הילה/צל שמפרידים אותו מהרקע */
+      'html.display-mode body{filter:contrast(1.22) brightness(1.18) saturate(1.35) !important;}',
+      /* טקסט בולט יותר: מודגש + הילה/צל + עובי-אות (stroke) לטקסטים דקים */
       'html.display-mode .screen{font-weight:700 !important;}',
-      'html.display-mode h1,html.display-mode h2,html.display-mode h3,html.display-mode .title,html.display-mode .name{font-weight:900 !important;letter-spacing:.5px;text-shadow:0 0 26px rgba(120,255,180,.35),0 2px 12px rgba(0,0,0,.85) !important;}',
-      'html.display-mode p,html.display-mode span,html.display-mode li,html.display-mode .subtitle,html.display-mode label,html.display-mode button{text-shadow:0 1px 10px rgba(0,0,0,.90) !important;}',
+      'html.display-mode h1,html.display-mode h2,html.display-mode h3,html.display-mode .title,html.display-mode .name,html.display-mode .ask,html.display-mode .tag{font-weight:900 !important;letter-spacing:.5px;text-shadow:0 0 26px rgba(120,255,180,.40),0 2px 12px rgba(0,0,0,.9) !important;-webkit-text-stroke:.4px currentColor;}',
+      /* תוויות קטנות ודקות (NAME/AGE וכו) — מבהיר, מגדיל ומעבה */
+      'html.display-mode label,html.display-mode .field label,html.display-mode .k,html.display-mode .kv-k,html.display-mode .sc-lbl,html.display-mode .rc-k,html.display-mode .label,html.display-mode .caption .label{color:#9ff5c2 !important;opacity:1 !important;font-weight:800 !important;text-shadow:0 1px 8px rgba(0,0,0,.9) !important;-webkit-text-stroke:.3px currentColor;}',
+      'html.display-mode p,html.display-mode span,html.display-mode li,html.display-mode .subtitle,html.display-mode button{text-shadow:0 1px 10px rgba(0,0,0,.90) !important;}',
       /* קווי מתאר/כפתורים בולטים יותר */
       'html.display-mode .btn,html.display-mode .card{filter:saturate(1.2) !important;box-shadow:0 0 28px rgba(0,0,0,.40) !important;}',
-      /* בהקרנה: להסתיר את כפתורי דלג/השתק */
-      'html.display-mode #btn-skip,html.display-mode #btn-mute{display:none !important;}'
+      /* בהקרנה: להסתיר את כפתורי דלג/השתק (וגם את המיכל שלהם) */
+      'html.display-mode .footer-controls,html.display-mode #btn-skip,html.display-mode #btn-mute{display:none !important;}'
     ].join('\n');
     document.head.appendChild(st);
   }catch(e){}
