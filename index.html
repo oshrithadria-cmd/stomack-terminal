@@ -1491,13 +1491,23 @@ function rtInit(){
     if(DISPLAY) _dispStatus('CONNECTING…', false);
     _rtClient = window.mqtt.connect(RT.url, { clientId:RT.clientId, reconnectPeriod:3000, connectTimeout:8000, clean:true });
     _rtClient.on('connect', ()=>{ _rtReady=true;
-      if(DISPLAY){ try{ _rtClient.subscribe(RT.topic); }catch(e){} _dispStatus('LIVE', true); }
+      if(DISPLAY){ try{ _rtClient.subscribe(RT.topic); }catch(e){} _dispStatus('LIVE', true); window.__lastLive=Date.now(); }
       if(_rtPending){ try{_rtClient.publish(RT.topic,_rtPending.p,_rtPending.o||{qos:0});}catch(e){} _rtPending=null; }
     });
-    if(DISPLAY){ _rtClient.on('message', (t,buf)=>{
-      let m; try{ m=JSON.parse(buf.toString('utf8')); }catch(e){ return; }
-      if(m && m.t==='mirror') applyMirror(m);
-    }); }
+    if(DISPLAY){
+      window.__lastLive = Date.now();
+      _rtClient.on('message', (t,buf,packet)=>{
+        let m; try{ m=JSON.parse(buf.toString('utf8')); }catch(e){ return; }
+        if(!m) return;
+        // כל שידור חי (mirror/פעימה שאינו "retained") = יש מבקר פעיל בטלפון
+        if(!(packet && packet.retain)) window.__lastLive = Date.now();
+        if(m.t==='mirror') applyMirror(m);
+      });
+      // אם אין שום שידור חי במשך כמה שניות — אין מבקר, אז חוזרים לפתיחה במקום להיתקע על אדם קודם (למשל "שרון")
+      if(!window.__noMasterWatch){ window.__noMasterWatch = setInterval(()=>{
+        if(window.__lastLive && (Date.now()-window.__lastLive > 4500)){ _projIntro(); }
+      }, 1500); }
+    }
     _rtClient.on('reconnect', ()=>{ if(DISPLAY) _dispStatus('RECONNECT…', false); });
     _rtClient.on('error', ()=>{});
     _rtClient.on('close', ()=>{ _rtReady=false; if(DISPLAY) _dispStatus('OFFLINE', false); });
@@ -1541,6 +1551,8 @@ if(!DISPLAY){
   });
   // רשת ביטחון: סריקה מהירה שתתפוס גם אנימציות/שינויים שאין להם אירוע
   setInterval(()=>pushMirrorNow(false), 150);
+  // פעימה קלה: מודיעה למקרן ש"יש מבקר פעיל" גם כשאין שינוי — כדי שלא יחזור לפתיחה בטעות
+  setInterval(()=>{ try{ rtPublish({ t:'hb', ts:Date.now() }, { retain:false }); }catch(e){} }, 1500);
 }
 
 function holoSend(path, body){
