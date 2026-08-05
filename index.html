@@ -12,6 +12,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Doto:wght@400;700;900&family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
 <!-- ספריית MQTT לערוץ זמן-אמת אל "מחשב המרכז" (הולוגרמה/מקרן). נטענת דחוי כדי לא לעכב טעינה. -->
 <script defer src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<!-- html2canvas: מצלם את גיליון הסיכום לתמונה כדי לשלוח למדפסת דרך הגשר במחשב. -->
+<script defer src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
   :root {
     --bg-0: #03070a;
@@ -483,6 +485,34 @@
     #print-sheet .p-cardlbl { font-size: 9px; text-transform: uppercase; }
     #print-sheet .p-cardname { font-size: 10px; font-weight: 700; }
   }
+
+  /* ---- מצב "צילום" להדפסה דרך הגשר: מציג את גיליון ההדפסה מחוץ למסך כדי ש-html2canvas יצלם אותו (בלי לפתוח דיאלוג הדפסה בטלפון) ---- */
+  #print-sheet.__cap { display: block !important; position: fixed; left: -99999px; top: 0; z-index: -1;
+    width: 384px; padding: 8px 6px; color: #000 !important; background: #fff !important;
+    font-family: 'Share Tech Mono', 'Courier New', monospace; font-size: 12px; line-height: 1.5; }
+  #print-sheet.__cap * { color: #000 !important; text-shadow: none !important; box-shadow: none !important; }
+  #print-sheet.__cap .p-title { text-align: center; font-weight: 700; font-size: 15px; letter-spacing: 1px; }
+  #print-sheet.__cap .p-sub { text-align: center; font-size: 11px; margin-bottom: 6px; }
+  #print-sheet.__cap .p-rule { border-top: 1px dashed #000; margin: 6px 0; }
+  #print-sheet.__cap .p-h { font-weight: 700; letter-spacing: 1px; margin: 6px 0 3px; border-bottom: 1px solid #000; }
+  #print-sheet.__cap .pr { display: flex; justify-content: space-between; gap: 10px; }
+  #print-sheet.__cap .pr .pk { text-transform: uppercase; }
+  #print-sheet.__cap .pr .pv { text-align: right; font-weight: 700; }
+  #print-sheet.__cap .p-note { margin-top: 6px; font-size: 11px; font-style: italic; }
+  #print-sheet.__cap .p-big { text-align: center; font-weight: 700; font-size: 18px; margin: 4px 0; }
+  #print-sheet.__cap .p-foot { text-align: center; font-size: 10px; margin-top: 8px; }
+  #print-sheet.__cap img { filter: grayscale(1) contrast(1.05); }
+  #print-sheet.__cap .p-id { display: flex; gap: 8px; align-items: flex-start; }
+  #print-sheet.__cap .p-portrait-wrap { flex: 0 0 auto; }
+  #print-sheet.__cap .p-portrait { width: 128px; height: auto; border: 1px solid #000; display: block; }
+  #print-sheet.__cap .p-portrait.ready-bw { filter: none; }
+  #print-sheet.__cap .p-idkv { flex: 1 1 auto; }
+  #print-sheet.__cap .p-cards { display: flex; gap: 12px; justify-content: space-between; }
+  #print-sheet.__cap .p-card { flex: 1 1 0; text-align: center; }
+  #print-sheet.__cap .p-cardimg { width: 100%; max-width: 98px; height: auto; border: 1px solid #000; display: block; margin: 0 auto 2px;
+    filter: grayscale(1) invert(1) contrast(1.1); }
+  #print-sheet.__cap .p-cardlbl { font-size: 9px; text-transform: uppercase; }
+  #print-sheet.__cap .p-cardname { font-size: 10px; font-weight: 700; }
 
   .footer-controls { position: fixed; bottom: 38px; inset-inline: 0; display: flex; gap: 12px; justify-content: center; z-index: 41; }
   .mini { background: rgba(2,8,5,0.8); border: 1px solid var(--green-dim); color: var(--muted); padding: 6px 16px; cursor: pointer; font-family: var(--font-term); font-size: 12px; letter-spacing: 1px; }
@@ -3323,7 +3353,30 @@ async function autoPrintDossier(){
     const url=capturePortraitDataURL();
     if(wrap && url){ wrap.innerHTML='<img class="p-portrait" src="'+url+'" alt="">'; }
   }
-  setTimeout(()=>{ try{ window.print(); }catch(e){} }, 350);
+  // שולח את גיליון הסיכום למחשב-הגשר שידפיס במדפסת התרמית (במקום לפתוח דיאלוג הדפסה בטלפון).
+  setTimeout(()=>{ sendDossierToPrinter(); }, 400);
+}
+
+/* מצלם את גיליון הסיכום לתמונה ושולח למחשב-הגשר דרך MQTT → המחשב מדפיס במדפסת. */
+async function sendDossierToPrinter(){
+  try{
+    if(DISPLAY) return;                       // המקרן לא מדפיס — רק הטלפון של המבקר
+    const el=document.getElementById('print-sheet');
+    if(!el) return;
+    if(typeof html2canvas!=='function'){       // נפילת רשת/ספרייה — לפחות לא נתקע
+      try{ window.print(); }catch(e){}
+      return;
+    }
+    el.classList.add('__cap');
+    await new Promise(r=>setTimeout(r,80));     // לתת לפריסה ולתמונות להתייצב
+    const canvas=await html2canvas(el, { backgroundColor:'#fff', scale:2, useCORS:true, logging:false });
+    el.classList.remove('__cap');
+    const dataURL=canvas.toDataURL('image/png');
+    const jobId='job-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
+    rtPublish({ t:'print', id:jobId, name:(State.name||''), img:dataURL, ts:Date.now() });
+  }catch(e){
+    try{ document.getElementById('print-sheet').classList.remove('__cap'); }catch(_){}
+  }
 }
 
 /* ----- ציוני הסיכום: ביטחון החלטה · הערכת סיכון · ציון התנהגותי ----- */
