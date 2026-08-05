@@ -1085,8 +1085,14 @@ const DISPLAY = /[?&#]display\b/.test(location.search + location.hash);
 /* --- צד הטלפון: משדר את המסך הפעיל ותוכנו (שקוף למבקר) --- */
 function mirrorSnapshot(){
   let nameInput=''; try{ const el=document.getElementById('f-name'); if(el) nameInput=el.value||''; }catch(e){}
+  // מקור המדיה נגזר ממה שבאמת מוצג כרגע ב-DOM (ולא מ-State קבוע),
+  // אחרת הסרטון של אדם קודם "נתקע" בהקרנה גם כשמנקים/מחליפים שם.
   let mediaSrc=null, mediaType=null;
-  try{ const m=matchNameMedia(nameInput||State.name)||State.portrait; if(m&&m.src){ mediaSrc=m.src; mediaType=m.type||'video'; } }catch(e){}
+  try{
+    const a0=document.querySelector('.screen.active');
+    const mv=a0 && a0.querySelector('.name-media.show video, .name-media.show img, .id-portrait video, .id-portrait img');
+    if(mv){ mediaSrc=(mv.getAttribute('src')||mv.currentSrc||mv.src||null); mediaType=(mv.tagName==='VIDEO')?'video':'img'; }
+  }catch(e){}
   let html=null; try{
     const a=document.querySelector('.screen.active');
     if(a){
