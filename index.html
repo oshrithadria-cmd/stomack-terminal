@@ -12,8 +12,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Doto:wght@400;700;900&family=Share+Tech+Mono&family=VT323&display=swap" rel="stylesheet">
 <!-- ספריית MQTT לערוץ זמן-אמת אל "מחשב המרכז" (הולוגרמה/מקרן). נטענת דחוי כדי לא לעכב טעינה. -->
 <script defer src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-<!-- html2canvas: מצלם את גיליון הסיכום לתמונה כדי לשלוח למדפסת דרך הגשר במחשב. -->
-<script defer src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<!-- html2canvas: מצלם את גיליון הסיכום לתמונה כדי לשלוח למדפסת דרך הגשר במחשב. מקומי כדי לא להיות תלוי ב-CDN חיצוני. -->
+<script defer src="vendor/html2canvas.min.js" data-h2c="1"></script>
 <style>
   :root {
     --bg-0: #03070a;
@@ -3357,14 +3357,35 @@ async function autoPrintDossier(){
   setTimeout(()=>{ sendDossierToPrinter(); }, 400);
 }
 
+/* מוודא שספריית הצילום נטענה (מקומית); אם חסרה — מזריק אותה ומחכה, עד timeout. */
+function ensureHtml2Canvas(timeoutMs){
+  return new Promise((resolve)=>{
+    if(typeof html2canvas==='function') return resolve(true);
+    let s=document.querySelector('script[data-h2c]');
+    if(!s){
+      s=document.createElement('script');
+      s.src='vendor/html2canvas.min.js';
+      s.setAttribute('data-h2c','1');
+      document.head.appendChild(s);
+    }
+    const t0=Date.now();
+    (function chk(){
+      if(typeof html2canvas==='function') return resolve(true);
+      if(Date.now()-t0>timeoutMs) return resolve(false);
+      setTimeout(chk,150);
+    })();
+  });
+}
+
 /* מצלם את גיליון הסיכום לתמונה ושולח למחשב-הגשר דרך MQTT → המחשב מדפיס במדפסת. */
 async function sendDossierToPrinter(){
   try{
     if(DISPLAY) return;                       // המקרן לא מדפיס — רק הטלפון של המבקר
     const el=document.getElementById('print-sheet');
     if(!el) return;
-    if(typeof html2canvas!=='function'){       // נפילת רשת/ספרייה — לפחות לא נתקע
-      try{ window.print(); }catch(e){}
+    const ready=await ensureHtml2Canvas(7000);
+    if(!ready){                                // הספרייה לא נטענה — לא פותחים דיאלוג מבלבל, פשוט מדלגים
+      console.warn('[print] html2canvas לא זמין — מדלג על הדפסה');
       return;
     }
     el.classList.add('__cap');
