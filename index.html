@@ -1131,6 +1131,7 @@ function applyMirror(m){
     }
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     el.classList.add('active');
+    if(DISPLAY && window.__refit) window.__refit();   // התאם אוטומטית את הגודל למקרן אחרי כל עדכון תוכן
   }catch(e){}
 }
 
@@ -1162,14 +1163,42 @@ if(DISPLAY){
   const _goFS=()=>{ try{ const el=document.documentElement; if(!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(()=>{}); }catch(e){} };
   ['click','touchend'].forEach(ev=> document.addEventListener(ev, _goFS, { passive:true }));
 
-  // כיוונון תמונה למקרן: מקטין/מגדיל את התוכן שייכנס בתוך מסגרת המקרן (Overscan). נשמר.
+  // כיוונון תמונה למקרן: מתאים אוטומטית את התוכן לגודל מסך המקרן (auto-fit),
+  // כך שכל מסך תמיד נכנס במלואו וממורכז — בלי צורך בכיוונון ידני עם מקלדת.
+  // חצים = כוונון עדין ידני (מכפיל על ה-fit) לקיזוז Overscan. נשמר במפתח חדש (הישן נזנח).
   let _adj={ s:1, x:0, y:0 };
-  try{ const sv=JSON.parse(localStorage.getItem('mirrorAdj')||'null'); if(sv && typeof sv.s==='number') _adj=sv; }catch(e){}
+  try{ const sv=JSON.parse(localStorage.getItem('mirrorAdj2')||'null'); if(sv && typeof sv.s==='number') _adj=sv; }catch(e){}
+  let _fitScale=1;
+  function _measureContent(){
+    const a=document.querySelector('.screen.active'); if(!a) return null;
+    const prev=document.body.style.transform; document.body.style.transform='none';   // מדידה במצב טבעי
+    let top=Infinity, bot=-Infinity, left=Infinity, right=-Infinity;
+    a.querySelectorAll(':scope > *').forEach(ch=>{
+      const cs=getComputedStyle(ch); if(cs.display==='none'||cs.visibility==='hidden') return;
+      const r=ch.getBoundingClientRect(); if(r.width===0 && r.height===0) return;
+      top=Math.min(top,r.top); bot=Math.max(bot,r.bottom); left=Math.min(left,r.left); right=Math.max(right,r.right);
+    });
+    document.body.style.transform=prev;
+    if(!isFinite(top)) return null;
+    return { w:right-left, h:bot-top };
+  }
+  function _autoFit(){
+    const c=_measureContent();
+    if(c && c.h>0 && c.w>0){
+      let s=Math.min(window.innerWidth/c.w, window.innerHeight/c.h)*0.94;   // 6% שוליים
+      if(isFinite(s) && s>0){ _fitScale=Math.max(0.3, Math.min(1.8, s)); }
+    }
+    _applyAdj();
+  }
+  let _refitT=null;
+  function _refit(){ clearTimeout(_refitT); _refitT=setTimeout(_autoFit, 120); }
+  window.__refit=_refit;   // כדי ש-applyMirror יקרא לזה אחרי הזרקת תוכן חדש
   function _applyAdj(){ try{
     document.body.style.transformOrigin='center center';
-    document.body.style.transform='translate('+_adj.x+'px,'+_adj.y+'px) scale('+_adj.s+')';
-    try{ localStorage.setItem('mirrorAdj', JSON.stringify(_adj)); }catch(e){}
-    const h=document.getElementById('adj-hint'); if(h) h.textContent='▼ smaller (fit inside) · ▲ bigger · ◄► shift · 0 reset   [×'+_adj.s.toFixed(2)+']';
+    const S=_fitScale*_adj.s;
+    document.body.style.transform='translate('+_adj.x+'px,'+_adj.y+'px) scale('+S.toFixed(3)+')';
+    try{ localStorage.setItem('mirrorAdj2', JSON.stringify(_adj)); }catch(e){}
+    const h=document.getElementById('adj-hint'); if(h) h.textContent='auto-fit ×'+_fitScale.toFixed(2)+'  ·  ◄► shift · ▲▼ fine · 0 reset  [man×'+_adj.s.toFixed(2)+']';
   }catch(e){} }
   function _showAdjUI(on){ ['adj-hint','adj-frame'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display=on?'':'none'; }); }
   window.addEventListener('load', ()=>{
@@ -1179,25 +1208,27 @@ if(DISPLAY){
       if(!document.getElementById('adj-hint')){ const hint=document.createElement('div'); hint.id='adj-hint';
         hint.style.cssText='position:fixed;bottom:8px;left:0;right:0;text-align:center;z-index:99999;font:12px monospace;letter-spacing:2px;color:#2ee66b;pointer-events:none;'; document.body.appendChild(hint); }
     }
-    _applyAdj();
-    setTimeout(()=>_showAdjUI(false), 15000);   // המסגרת/הרמז נעלמים אחרי כיוונון ראשוני
+    _autoFit();
+    setTimeout(_autoFit, 500);                    // ריצה נוספת אחרי טעינת גופנים/מדיה
+    setTimeout(()=>_showAdjUI(false), 15000);     // המסגרת/הרמז נעלמים אחרי כיוונון ראשוני
   });
-  setTimeout(_applyAdj, 400);
+  window.addEventListener('resize', _refit);
+  setTimeout(_autoFit, 400);
   document.addEventListener('keydown', (e)=>{
     _goFS();
     _showAdjUI(true); clearTimeout(window.__adjT); window.__adjT=setTimeout(()=>_showAdjUI(false), 15000);
     let handled=true;
     switch(e.key){
-      case 'ArrowDown':  _adj.s=Math.max(0.5, _adj.s-0.02); break;  // הקטן — להכניס פנימה
-      case 'ArrowUp':    _adj.s=Math.min(2,   _adj.s+0.02); break;  // הגדל
-      case 'ArrowLeft':  _adj.x-=10; break;
-      case 'ArrowRight': _adj.x+=10; break;
-      case '+': case '=': _adj.s=Math.min(2,   _adj.s+0.02); break;
-      case '-': case '_': _adj.s=Math.max(0.5, _adj.s-0.02); break;
-      case '0': _adj={s:1,x:0,y:0}; break;
+      case 'ArrowDown':  _adj.s=Math.max(0.5, _adj.s-0.02); _applyAdj(); break;  // כוונון עדין ידני
+      case 'ArrowUp':    _adj.s=Math.min(2,   _adj.s+0.02); _applyAdj(); break;
+      case 'ArrowLeft':  _adj.x-=10; _applyAdj(); break;
+      case 'ArrowRight': _adj.x+=10; _applyAdj(); break;
+      case '+': case '=': _adj.s=Math.min(2,   _adj.s+0.02); _applyAdj(); break;
+      case '-': case '_': _adj.s=Math.max(0.5, _adj.s-0.02); _applyAdj(); break;
+      case '0': _adj={s:1,x:0,y:0}; _autoFit(); break;   // איפוס מלא + התאמה אוטומטית מחדש
       default: handled=false;
     }
-    if(handled){ try{ e.preventDefault(); }catch(_){} _applyAdj(); }
+    if(handled){ try{ e.preventDefault(); }catch(_){} }
   });
 }
 
