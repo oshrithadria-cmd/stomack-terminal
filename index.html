@@ -1137,7 +1137,8 @@ function applyMirror(m){
     }
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     el.classList.add('active');
-    if(DISPLAY && window.__refit) window.__refit();   // התאם אוטומטית את הגודל למקרן אחרי כל עדכון תוכן
+    // מתאימים את הגודל פעם אחת לכל מסך (במעבר מסך) — לא בכל הקלדה — כדי שהגודל יישאר קבוע
+    if(DISPLAY && window.__refit && window.__fitScreen!==el.id){ window.__fitScreen=el.id; window.__refit(); }
   }catch(e){}
 }
 /* מקרן: חזרה למסך הפתיחה כשאין שידור חי (רק הודעה ישנה "תקועה" מהברוקר) */
@@ -1167,7 +1168,9 @@ if(DISPLAY){
       /* קווי מתאר/כפתורים בולטים יותר */
       'html.display-mode .btn,html.display-mode .card{filter:saturate(1.2) !important;box-shadow:0 0 28px rgba(0,0,0,.40) !important;}',
       /* בהקרנה: להסתיר את כפתורי דלג/השתק (וגם את המיכל שלהם) */
-      'html.display-mode .footer-controls,html.display-mode #btn-skip,html.display-mode #btn-mute{display:none !important;}'
+      'html.display-mode .footer-controls,html.display-mode #btn-skip,html.display-mode #btn-mute{display:none !important;}',
+      /* בהקרנה: תמונת הדיוקן קטנה יותר כדי שלא תדחוף/תקטין את המסך */
+      'html.display-mode .name-media{width:clamp(90px,16vw,150px) !important;margin-top:2px !important;}'
     ].join('\n');
     document.head.appendChild(st);
   }catch(e){}
@@ -1193,15 +1196,6 @@ if(DISPLAY){
       });
       if(!isFinite(top)) return null;
       let w=right-left, h=bot-top;
-      // שריון גובה לתמונת הדיוקן גם כשהיא מוסתרת, כדי שה-fit לא יקטין את המסך כשמופיע שם מזוהה
-      const nm=a.querySelector('.name-media');
-      if(nm && !nm.classList.contains('show')){
-        const savedDisplay=nm.style.display, savedVisibility=nm.style.visibility;
-        nm.style.visibility='hidden'; nm.style.display='block';
-        const mw=nm.offsetWidth||0;
-        nm.style.display=savedDisplay; nm.style.visibility=savedVisibility;
-        if(mw>0) h += (mw*4/3) + 12;   // ‎+12 ≈ מרווח/שוליים בין השדה לתמונה
-      }
       return { w:w, h:h };
     } finally {
       document.body.style.transform=prev;
