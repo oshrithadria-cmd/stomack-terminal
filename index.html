@@ -480,7 +480,7 @@
     #print-sheet .p-idkv { flex: 1 1 auto; }
     #print-sheet .p-cards { display: flex; gap: 4mm; justify-content: space-between; }
     #print-sheet .p-card { flex: 1 1 0; text-align: center; }
-    #print-sheet .p-cardimg { width: 100%; max-width: 26mm; height: auto; border: 1px solid #000; display: block; margin: 0 auto 2px;
+    #print-sheet .p-cardimg { display: none !important; width: 100%; max-width: 26mm; height: auto; border: 1px solid #000; margin: 0 auto 2px;
       filter: grayscale(1) invert(1) contrast(1.1); }   /* היפוך → קווים כהים על רקע לבן, חוסך דיו */
     #print-sheet .p-cardlbl { font-size: 9px; text-transform: uppercase; }
     #print-sheet .p-cardname { font-size: 10px; font-weight: 700; }
@@ -509,8 +509,7 @@
   #print-sheet.__cap .p-idkv { flex: 1 1 auto; }
   #print-sheet.__cap .p-cards { display: flex; gap: 12px; justify-content: space-between; }
   #print-sheet.__cap .p-card { flex: 1 1 0; text-align: center; }
-  #print-sheet.__cap .p-cardimg { width: 100%; max-width: 98px; height: auto; border: 1px solid #000; display: block; margin: 0 auto 2px;
-    filter: grayscale(1) invert(1) contrast(1.1); }
+  #print-sheet.__cap .p-cardimg { display: none !important; }
   #print-sheet.__cap .p-cardlbl { font-size: 9px; text-transform: uppercase; }
   #print-sheet.__cap .p-cardname { font-size: 10px; font-weight: 700; }
 
