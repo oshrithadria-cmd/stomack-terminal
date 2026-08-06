@@ -3358,14 +3358,7 @@ function buildPrintSheet(ctx){
   h+=pr('BEHAVIORAL SCORE', beh.grade+' · '+beh.s);
   if(State.wheelResult) h+=pr('WHEEL OF FATE', State.wheelResult);
 
-  h+='<div class="p-h">THE CARDS</div>';
-  h+='<div class="p-cards">';
-  cards.forEach(c=>{
-    h+='<div class="p-card">'+
-       (c.img?'<img class="p-cardimg" src="'+escHtml(c.img)+'" alt="">':'<div class="p-cardimg">'+escHtml(c.s||'?')+'</div>')+
-       '<div class="p-cardlbl">'+escHtml(c.lbl)+'</div><div class="p-cardname">'+escHtml(c.n)+'</div></div>';
-  });
-  h+='</div>';
+  // אזור הקלפים הוסר מדף ההדפסה לפי בקשת המשתמשת (בלי תמונות ובלי שמות קלפים)
 
   h+='<div class="p-h">THE TRADE</div>';
   h+=pr('SIGNAL', S+' · '+TRADE.action);
