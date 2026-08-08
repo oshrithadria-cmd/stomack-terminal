@@ -775,7 +775,7 @@
     <section class="screen" id="screen-voice">
       <div class="step-dots" data-step="5"></div>
       <div class="transmit" id="voice-orb">◉ TRANSMITTING</div>
-      <div class="ask"><span class="en">Sing the scale. Do · Re · Mi · Fa · Sol · La · Si · Do.</span></div>
+      <div class="ask"><span class="en">Sing for me.</span></div>
       <p class="hint" style="color:var(--muted);font-size:13px;letter-spacing:1px;">
         Press START and sing the eight notes rising. I am listening to your pitch and your nerve.
         <span style="display:block;opacity:.85">לחצו START ושירו דו רה מי פה סול לה סי דו בעלייה.</span>
@@ -2256,7 +2256,7 @@ let voiceState={ running:false, stream:null, ctx:null, raf:null };
 async function startVoice(){
   show('screen-voice'); setOrb(document.getElementById('voice-orb')); renderSteps();
   resetVoiceUI();
-  await speak('Now sing the scale for me. Do, re, mi, fa, sol, la, si, do — rising. Press start when you are ready.');
+  await speak('Sing for me. Press start when you are ready.');
 }
 
 function freqToNote(f){
