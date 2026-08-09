@@ -2901,7 +2901,9 @@ async function revealRitual(){
 
   speak(State.name ? (State.name + ', the cards are turning.') : 'The cards are turning.');
   for(let i=0;i<3;i++){ await wait(430); document.getElementById('card-'+i).classList.add('flipped'); try{ mirror('screen-ritual'); }catch(e){} }
-  // מרגע שהקלף האחרון נפתח — המתנה של 2 שניות ואז ההודעה קופצת
+  // ממתינים שהקלף האחרון יסיים להיחשף לגמרי (אנימציית חשיפה ~3.1 שניות),
+  // ורק אז סופרים 2 שניות שלמות לפני שההודעה קופצת
+  await wait(3100);
   await wait(2000);
 
   document.getElementById('verdict-block').style.display='flex';
