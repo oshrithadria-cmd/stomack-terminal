@@ -2662,7 +2662,7 @@ document.getElementById('ca-close').addEventListener('click',()=>{
 });
 document.getElementById('ca-continue').addEventListener('click',()=>{
   document.getElementById('cog-analysis').style.display='none';
-  startWheel();
+  revealRitual();
 });
 
 /* =========================================================
@@ -3543,8 +3543,7 @@ document.getElementById('btn-skip').addEventListener('click',()=>{
   else if(a==='screen-questions'){ const q=QUESTIONS[qIndex]; if(q.type==='slider'){State.confidence=+slI.value;next();} else answerQuestion(q.id,q.opts[0].v); }
   else if(a==='screen-body'){ auraReset(); State.steadiness=60; State.auraTurbulence=40; State.auraColor=AURA_COLORS[2]; State.expression='Guarded'; State.gazeAway=false; State.blinks=3; State.blinkLatency=1400; State.eyeContact=70; startVoice(); }
   else if(a==='screen-voice'){ stopVoice(); if(State.voiceStress==null){ State.voiceStress=45; State.vocalRange=6; State.peakDb=60; State.voiceReadout='—'; } startCognitive(); }
-  else if(a==='screen-cognitive'){ cogStop(); if(State.cognitiveLoad==null){ State.cognitiveLoad=50; State.reactionMs=900; State.hitRate=70; } startWheel(); }
-  else if(a==='screen-wheel'){ revealRitual(); }
+  else if(a==='screen-cognitive'){ cogStop(); if(State.cognitiveLoad==null){ State.cognitiveLoad=50; State.reactionMs=900; State.hitRate=70; } revealRitual(); }
 });
 function wait(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
