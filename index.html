@@ -2083,6 +2083,8 @@ async function startBody(){
     startBtn.style.display=''; startBtn.disabled=false;
     startBtn.classList.add('await-continue');
     startBtn.innerHTML='SCAN COMPLETE · CONTINUE';
+    // משהים 3 שניות עם תוצאות הסריקה על המסך, ורק אז קופצת הודעת הניתוח
+    await wait(3000);
     // הודעת אזהרה: ניתוח מפורט של סריקת הפנים
     showScanAnalysis(real);
     if(real){
