@@ -2901,7 +2901,8 @@ async function revealRitual(){
 
   speak(State.name ? (State.name + ', the cards are turning.') : 'The cards are turning.');
   for(let i=0;i<3;i++){ await wait(430); document.getElementById('card-'+i).classList.add('flipped'); try{ mirror('screen-ritual'); }catch(e){} }
-  await wait(550);
+  // כל הקלפים פתוחים — נשארים על המסך 3 שניות לפני שההודעה עולה
+  await wait(3000);
 
   document.getElementById('verdict-block').style.display='flex';
   const v=verdictFor(), S=subjectDisplay();
