@@ -2908,22 +2908,31 @@ async function revealRitual(){
 
   document.getElementById('verdict-block').style.display='flex';
   const v=verdictFor(), S=subjectDisplay();
-  document.getElementById('verdict-stock').textContent='SIGNAL FOR :: '+S;
-  const w=document.getElementById('verdict-word'); w.textContent=v.word; w.className='verdict '+v.word;
-  await wait(250);
-
   const r=buildReveal();
   const revEl=document.getElementById('reveal-text');
   const spoken=(State.name?State.name+'. ':'') + r.en.replace(/<[^>]+>/g,'');
   const closerEn='The search for a sign is the decision itself.';
   const closerEl=document.getElementById('closer-text');
-  // הטקסט מופיע מיידית; הקול מקריא הכול ברצף אחד ברקע בלי לעכב את המסך
-  typeHTML(revEl, r.en, 2000); typeHTML(closerEl, closerEn, 2000);
-  try{ mirror('screen-ritual'); }catch(e){}
+
+  // הקול מקריא הכול ברצף אחד ברקע, בזמן שהטקסט נחשף חלק-אחר-חלק
   speak('The room says ' + v.say + '. ' + spoken + ' ' + closerEn + ' Will you accept what the room decided?');
+
+  // חשיפה מדורגת — כל חלק מופיע אחרי הקודם
+  document.getElementById('verdict-stock').textContent='SIGNAL FOR :: '+S;
+  try{ mirror('screen-ritual'); }catch(e){}
   await wait(500);
+  const w=document.getElementById('verdict-word'); w.textContent=v.word; w.className='verdict '+v.word;
+  try{ mirror('screen-ritual'); }catch(e){}
+  await wait(800);
+  typeHTML(revEl, r.en, 2000);
+  try{ mirror('screen-ritual'); }catch(e){}
+  await wait(1100);
+  typeHTML(closerEl, closerEn, 2000);
+  try{ mirror('screen-ritual'); }catch(e){}
+  await wait(900);
   document.getElementById('verdict-final').style.display='none';
   const ch=document.getElementById('verdict-choice'); ch.style.display='flex';
+  try{ mirror('screen-ritual'); }catch(e){}
 }
 
 async function respondChoice(accepted){
