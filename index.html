@@ -2900,8 +2900,8 @@ async function revealRitual(){
   document.getElementById('verdict-word-he').textContent=''; document.getElementById('reveal-text').innerHTML=''; document.getElementById('closer-text').innerHTML='';
 
   speak(State.name ? (State.name + ', the cards are turning.') : 'The cards are turning.');
-  for(let i=0;i<3;i++){ await wait(280); document.getElementById('card-'+i).classList.add('flipped'); try{ mirror('screen-ritual'); }catch(e){} }
-  await wait(300);
+  for(let i=0;i<3;i++){ await wait(430); document.getElementById('card-'+i).classList.add('flipped'); try{ mirror('screen-ritual'); }catch(e){} }
+  await wait(550);
 
   document.getElementById('verdict-block').style.display='flex';
   const v=verdictFor(), S=subjectDisplay();
