@@ -2900,27 +2900,27 @@ async function revealRitual(){
   document.getElementById('verdict-word-he').textContent=''; document.getElementById('reveal-text').innerHTML=''; document.getElementById('closer-text').innerHTML='';
 
   await speak(State.name ? (State.name + ', the cards are turning.') : 'The cards are turning. Witness them.');
-  for(let i=0;i<3;i++){ await wait(1200); document.getElementById('card-'+i).classList.add('flipped'); try{ mirror('screen-ritual'); }catch(e){} await speak(cards[i].n); await wait(700); }
-  // השהייה ארוכה כדי לראות את שלושת הקלפים במלואם לפני שהפסק־דין מופיע
-  await wait(4200);
+  for(let i=0;i<3;i++){ await wait(350); document.getElementById('card-'+i).classList.add('flipped'); try{ mirror('screen-ritual'); }catch(e){} await speak(cards[i].n); await wait(150); }
+  // השהייה קצרה כדי לראות את שלושת הקלפים לפני שהפסק־דין מופיע
+  await wait(900);
 
   document.getElementById('verdict-block').style.display='flex';
   const v=verdictFor(), S=subjectDisplay();
   document.getElementById('verdict-stock').textContent='SIGNAL FOR :: '+S;
   const w=document.getElementById('verdict-word'); w.textContent=v.word; w.className='verdict '+v.word;
   await speak('The room says ' + v.say);
-  await wait(500);
+  await wait(150);
 
   const r=buildReveal();
   const revEl=document.getElementById('reveal-text');
   const spoken=(State.name?State.name+'. ':'') + r.en.replace(/<[^>]+>/g,'');
   await Promise.all([ typeHTML(revEl, r.en, 2000), speak(spoken) ]);
-  await wait(500);
+  await wait(150);
   const closerEn='The search for a sign is the decision itself.';
   const closerEl=document.getElementById('closer-text');
   await Promise.all([ typeHTML(closerEl, closerEn, 2000), speak(closerEn) ]);
   try{ mirror('screen-ritual'); }catch(e){}
-  await wait(300);
+  await wait(150);
   document.getElementById('verdict-final').style.display='none';
   const ch=document.getElementById('verdict-choice'); ch.style.display='flex';
   await speak('Will you accept what the room decided?');
