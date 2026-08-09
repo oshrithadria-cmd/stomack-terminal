@@ -2914,11 +2914,11 @@ async function revealRitual(){
   const r=buildReveal();
   const revEl=document.getElementById('reveal-text');
   const spoken=(State.name?State.name+'. ':'') + r.en.replace(/<[^>]+>/g,'');
-  await Promise.all([ typeHTML(revEl, r.en, 40), speak(spoken) ]);
+  await Promise.all([ typeHTML(revEl, r.en, 2000), speak(spoken) ]);
   await wait(500);
   const closerEn='The search for a sign is the decision itself.';
   const closerEl=document.getElementById('closer-text');
-  await Promise.all([ typeHTML(closerEl, closerEn, 40), speak(closerEn) ]);
+  await Promise.all([ typeHTML(closerEl, closerEn, 2000), speak(closerEn) ]);
   try{ mirror('screen-ritual'); }catch(e){}
   await wait(300);
   document.getElementById('verdict-final').style.display='none';
