@@ -1288,7 +1288,8 @@ function speak(text){
     speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(text);
     if(chosenVoice)u.voice=chosenVoice;
-    u.lang='en-US'; u.rate=0.84; u.pitch=0.95; u.volume=0.85;
+    // ווייב רגוע ונינוח: קצב איטי, גובה רך וטבעי, עוצמה עדינה
+    u.lang='en-US'; u.rate=0.76; u.pitch=1.0; u.volume=0.8;
     u.onstart=()=>{ if(currentOrb)currentOrb.classList.add('speaking'); };
     const done=()=>{ if(currentOrb)currentOrb.classList.remove('speaking'); resolve(); };
     u.onend=done; u.onerror=done; speechSynthesis.speak(u);
