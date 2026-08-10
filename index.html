@@ -1264,9 +1264,20 @@ renderSteps();
 let chosenVoice=null;
 function pickVoice(){
   const v=speechSynthesis.getVoices(); if(!v.length)return;
-  const prefer=['Samantha','Microsoft Aria','Microsoft Jenny','Microsoft Michelle','Microsoft Sonia','Microsoft Libby','Moira','Tessa','Fiona','Karen','Google UK English Female','Google US English','Microsoft Zira'];
-  for(const n of prefer){const f=v.find(x=>x.name.includes(n)); if(f){chosenVoice=f;return;}}
-  chosenVoice=v.find(x=>/^en/i.test(x.lang)&&/female|woman|samantha|aria|jenny|sonia|libby/i.test(x.name))||v.find(x=>/^en/i.test(x.lang))||v[0];
+  // מזהי קול נשי/גברי לפי שם או voiceURI — כדי לכפות תמיד קול של אישה בכל טלפון
+  const FEMALE=/(female|woman|girl|samantha|aria|jenny|michelle|sonia|libby|zira|hazel|susan|catherine|karen|moira|tessa|fiona|serena|allison|ava|joanna|kendra|kimberly|salli|nicole|emma|amy|monica|paulina|female[_-]?\d*)/i;
+  const MALE=/(\bmale\b|[_#-]male\b|\bman\b|\bguy\b|david|mark|ryan|george|james|daniel|\balex\b|fred|\btom\b|oliver|arthur|brian|diego|jorge|male[_-]?\d+)/i;
+  const en=v.filter(x=>/^en/i.test(x.lang));
+  const pool=en.length?en:v;
+  // 1) קולות נשיים מוכרים לפי שם (Apple/Microsoft/Google) — הבחירה הבטוחה ביותר
+  const prefer=['Samantha','Microsoft Aria','Microsoft Jenny','Microsoft Michelle','Microsoft Sonia','Microsoft Libby','Microsoft Zira','Google UK English Female','Karen','Moira','Tessa','Fiona','Serena','Google US English'];
+  for(const n of prefer){const f=pool.find(x=>x.name.includes(n)); if(f){chosenVoice=f;return;}}
+  // 2) כל קול שהשם/המזהה שלו מסמן נקבה
+  let f=pool.find(x=>FEMALE.test(x.name)||FEMALE.test(x.voiceURI||''));
+  if(f){chosenVoice=f;return;}
+  // 3) קול אנגלי שאינו מסומן כזכר (עדיף על פני "הראשון ברשימה" שלעיתים גברי)
+  f=pool.find(x=>!(MALE.test(x.name)||MALE.test(x.voiceURI||'')));
+  chosenVoice=f||pool[0]||v[0];
 }
 if('speechSynthesis'in window){ speechSynthesis.onvoiceschanged=pickVoice; pickVoice(); }
 
