@@ -70,12 +70,12 @@
 
   .stage { position: relative; z-index: 5; height: 100%;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
-    padding: 5vh 5vw; text-align: center; }
+    padding: 5vh 5vw 88px; text-align: center; }
 
   .screen { display: none; flex-direction: column; align-items: center; justify-content: center;
     gap: 2.4vh; width: 100%; max-width: 1150px; animation: boot .6s steps(8) both; }
   .screen.active { display: flex; max-height: 100%; overflow-y: auto; overflow-x: hidden;
-    scrollbar-width: none; -ms-overflow-style: none; padding-bottom: 92px; }
+    scrollbar-width: none; -ms-overflow-style: none; padding-bottom: 16px; }
   .screen.active::-webkit-scrollbar { width: 0; height: 0; display: none; }
   @keyframes boot { from { opacity: 0; } to { opacity: 1; } }
 
