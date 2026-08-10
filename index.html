@@ -97,6 +97,13 @@
   #screen-intro h1 { line-height: 1.25; }
   #screen-intro .subtitle { line-height: 2.2; }
 
+  /* מסך סרטון פתיחה — ממלא את כל השטח */
+  #screen-introvid { gap: 0; padding: 0; max-width: none; width: 100%; height: 100%; }
+  #screen-introvid.active { padding-bottom: 0; }
+  #screen-introvid #intro-video { width: 100%; height: 100%; max-height: 100%; object-fit: contain; background: #000; }
+  #screen-introvid #btn-introvid-skip { position: fixed; right: 18px; bottom: 18px; z-index: 60;
+    opacity: 0.85; font-size: 13px; padding: 8px 16px; }
+
   .tag { color: var(--muted); font-size: 13px; letter-spacing: 4px; text-transform: uppercase; }
   .tag .live { color: var(--buy); }
   /* סמן בלוק מהבהב בסגנון DOS */
@@ -652,6 +659,12 @@
       </div>
     </section>
 
+    <!-- סרטון פתיחה שמופעל אוטומטית אחרי לחיצת ENTER, לפני מסך השם -->
+    <section class="screen" id="screen-introvid">
+      <video id="intro-video" playsinline preload="auto" src="media/intro.mp4"></video>
+      <button class="btn" id="btn-introvid-skip">SKIP ▸</button>
+    </section>
+
     <!-- שלב 1: זיהוי האדם -->
     <section class="screen" id="screen-identify">
       <div class="step-dots" data-step="1"></div>
@@ -1169,7 +1182,7 @@ if(DISPLAY){
       /* קווי מתאר/כפתורים בולטים יותר */
       'html.display-mode .btn,html.display-mode .card{filter:saturate(1.2) !important;box-shadow:0 0 28px rgba(0,0,0,.40) !important;}',
       /* בהקרנה: להסתיר את כפתורי דלג/השתק (וגם את המיכל שלהם) */
-      'html.display-mode .footer-controls,html.display-mode #btn-skip,html.display-mode #btn-mute{display:none !important;}',
+      'html.display-mode .footer-controls,html.display-mode #btn-skip,html.display-mode #btn-mute,html.display-mode #btn-introvid-skip{display:none !important;}',
       /* בהקרנה: תמונת הדיוקן קטנה יותר כדי שלא תדחוף/תקטין את המסך */
       'html.display-mode .name-media{width:clamp(90px,16vw,150px) !important;margin-top:2px !important;}'
     ].join('\n');
@@ -1441,12 +1454,35 @@ function matchNameMedia(input){
 /* =========================================================
    STEP 0 → 1 : פתיחה וזיהוי
    ========================================================= */
-document.getElementById('btn-begin').addEventListener('click', async ()=>{
-  holoCue('start'); // הולוגרמה: הדלקה בתחילת החוויה
+// מעבר למסך השם — הלוגיקה המקורית שהופעלה מיד אחרי ENTER, כעת אחרי סרטון הפתיחה
+async function enterIdentify(){
   startAmbient(); show('screen-identify'); setOrb(document.getElementById('identify-orb'));
   await speak('Before we analyze the market, we will analyze you. Tell me who you are.');
   document.getElementById('f-name').focus();
+}
+
+let _introDone=false;
+function finishIntroVideo(){
+  if(_introDone) return; _introDone=true;
+  const v=document.getElementById('intro-video');
+  try{ v.pause(); }catch(e){}
+  enterIdentify();
+}
+
+document.getElementById('btn-begin').addEventListener('click', async ()=>{
+  holoCue('start'); // הולוגרמה: הדלקה בתחילת החוויה
+  _introDone=false;
+  const v=document.getElementById('intro-video');
+  show('screen-introvid');
+  // הפעלה עם קול חייבת לקרות בתוך אירוע הלחיצה (מחווה של המשתמש)
+  try{ v.currentTime=0; }catch(e){}
+  v.muted=false; v.volume=1.0;
+  const p=v.play();
+  if(p&&p.catch){ p.catch(()=>{ // אם הדפדפן חסם קול, ננסה שוב מושתק כדי שהסרטון עדיין ירוץ
+    v.muted=true; v.play().catch(()=>{ finishIntroVideo(); }); }); }
 });
+document.getElementById('intro-video').addEventListener('ended', finishIntroVideo);
+document.getElementById('btn-introvid-skip').addEventListener('click', finishIntroVideo);
 
 setupChips('f-exp', v=>State.experience=v);
 setupChips('f-week', v=>State.week=v);
