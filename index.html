@@ -274,7 +274,7 @@
     width: min(880px, 92vw); height: min(720px, 90vh); max-height: 90vh; overflow: hidden;
     display: flex; flex-direction: column; animation: warnPop .3s ease both; }
   @keyframes warnPop { 0%{ opacity: 0; } 100%{ opacity: 1; } }
-  .v-titlebar { position: sticky; top: 0; background: var(--green); color: var(--bg-0); font-weight: 700;
+  .v-titlebar { position: sticky; top: 0; z-index: 20; background: var(--green); color: var(--bg-0); font-weight: 700;
     letter-spacing: 4px; text-align: center; padding: 6px 12px; font-size: clamp(13px,1.8vw,17px); animation: warnBlink 1.1s steps(1) infinite; }
   @keyframes warnBlink { 0%,100%{ background: var(--green); } 50%{ background: var(--amber); } }
   .v-body { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
