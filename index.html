@@ -75,7 +75,7 @@
   .screen { display: none; flex-direction: column; align-items: center; justify-content: center;
     gap: 2.4vh; width: 100%; max-width: 1150px; animation: boot .6s steps(8) both; }
   .screen.active { display: flex; max-height: 100%; overflow-y: auto; overflow-x: hidden;
-    scrollbar-width: none; -ms-overflow-style: none; padding-bottom: 16px; }
+    scrollbar-width: none; -ms-overflow-style: none; padding-bottom: 16px; justify-content: safe center; }
   .screen.active::-webkit-scrollbar { width: 0; height: 0; display: none; }
   @keyframes boot { from { opacity: 0; } to { opacity: 1; } }
 
@@ -205,7 +205,8 @@
 
   /* סריקה ביומטרית */
   #screen-body { gap: 1.4vh; padding-block: 8px 68px; }
-  #screen-body .ask { min-height: 0; }
+  #screen-body .ask { min-height: 0; flex-shrink: 0; }
+  #screen-body .scan-rig, #screen-body .aura-readout, #screen-body .aura-meter, #screen-body #btn-scan-start { flex-shrink: 0; }
   #screen-body .ask .en { font-size: clamp(18px, 2.6vw, 30px); }
   #screen-body .aura-readout { margin-top: 0.6vh; line-height: 1.6; }
   #btn-scan-start { margin-top: 1.2vh; }
