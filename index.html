@@ -495,23 +495,23 @@
   /* ---- מצב "צילום" להדפסה דרך הגשר: מציג את גיליון ההדפסה מחוץ למסך כדי ש-html2canvas יצלם אותו (בלי לפתוח דיאלוג הדפסה בטלפון) ---- */
   /* גודל מותאם ל-10x15 ס"מ: יחס ~2:3 כדי למלא את התווית עם מינימום שוליים לבנים */
   #print-sheet.__cap { display: flex !important; flex-direction: column; position: fixed; left: -99999px; top: 0; z-index: -1;
-    width: 440px; min-height: 660px; padding: 14px 18px; box-sizing: border-box; color: #000 !important; background: #fff !important;
-    font-family: 'Share Tech Mono', 'Courier New', monospace; font-size: 15px; line-height: 1.6; }
+    width: 440px; min-height: 660px; padding: 16px 20px; box-sizing: border-box; color: #000 !important; background: #fff !important;
+    font-family: 'Share Tech Mono', 'Courier New', monospace; font-size: 20px; line-height: 1.7; }
   #print-sheet.__cap * { color: #000 !important; text-shadow: none !important; box-shadow: none !important; }
-  #print-sheet.__cap .p-title { text-align: center; font-weight: 700; font-size: 23px; letter-spacing: 1px; }
-  #print-sheet.__cap .p-sub { text-align: center; font-size: 13px; margin-bottom: 8px; }
-  #print-sheet.__cap .p-rule { border-top: 1px dashed #000; margin: 9px 0; }
-  #print-sheet.__cap .p-h { font-weight: 700; font-size: 16px; letter-spacing: 1px; margin: 11px 0 5px; border-bottom: 1px solid #000; }
-  #print-sheet.__cap .pr { display: flex; justify-content: space-between; gap: 10px; font-size: 15px; margin: 3px 0; }
+  #print-sheet.__cap .p-title { text-align: center; font-weight: 700; font-size: 31px; letter-spacing: 1px; }
+  #print-sheet.__cap .p-sub { text-align: center; font-size: 16px; margin-bottom: 12px; }
+  #print-sheet.__cap .p-rule { border-top: 1px dashed #000; margin: 12px 0; }
+  #print-sheet.__cap .p-h { font-weight: 700; font-size: 22px; letter-spacing: 1px; margin: 16px 0 8px; border-bottom: 2px solid #000; }
+  #print-sheet.__cap .pr { display: flex; justify-content: space-between; gap: 12px; font-size: 20px; margin: 6px 0; }
   #print-sheet.__cap .pr .pk { text-transform: uppercase; }
   #print-sheet.__cap .pr .pv { text-align: right; font-weight: 700; }
-  #print-sheet.__cap .p-note { margin-top: 8px; font-size: 12px; font-style: italic; }
-  #print-sheet.__cap .p-big { text-align: center; font-weight: 700; font-size: 27px; margin: 8px 0; }
-  #print-sheet.__cap .p-foot { text-align: center; font-size: 12px; margin-top: auto; padding-top: 10px; }
+  #print-sheet.__cap .p-note { margin-top: 12px; font-size: 18px; font-style: italic; }
+  #print-sheet.__cap .p-big { text-align: center; font-weight: 700; font-size: 38px; margin: 14px 0; }
+  #print-sheet.__cap .p-foot { text-align: center; font-size: 16px; margin-top: auto; padding-top: 14px; }
   #print-sheet.__cap img { filter: grayscale(1) contrast(1.05); }
-  #print-sheet.__cap .p-id { display: flex; gap: 12px; align-items: flex-start; }
+  #print-sheet.__cap .p-id { display: flex; gap: 14px; align-items: flex-start; }
   #print-sheet.__cap .p-portrait-wrap { flex: 0 0 auto; }
-  #print-sheet.__cap .p-portrait { width: 175px; height: auto; border: 1px solid #000; display: block; }
+  #print-sheet.__cap .p-portrait { width: 200px; height: auto; border: 1px solid #000; display: block; }
   #print-sheet.__cap .p-portrait.ready-bw { filter: none; }
   #print-sheet.__cap .p-idkv { flex: 1 1 auto; }
   #print-sheet.__cap .p-cards { display: flex; gap: 12px; justify-content: space-between; }
@@ -3419,21 +3419,8 @@ function buildPrintSheet(ctx){
   h+=pr('GAZE', State.gazeAway?'DRIFTING':'HELD');
   h+='<div class="p-note">What I think: '+escHtml(bv.en)+'</div>';
 
-  h+='<div class="p-h">STRESS & COGNITION TESTS</div>';
-  h+=pr('VOICE STRESS', State.voiceStress!=null?State.voiceStress+'%':'—');
-  h+=pr('VOCAL RANGE', State.vocalRange!=null?State.vocalRange+' notes':'—');
-  h+=pr('PEAK VOLUME', State.peakDb!=null?State.peakDb+' dB':'—');
-  h+=pr('MENTAL LOAD', State.cognitiveLoad!=null?State.cognitiveLoad+'%':'—');
-  h+=pr('REACTION', State.reactionMs!=null?State.reactionMs+' ms':'—');
-  h+=pr('ACCURACY', State.hitRate!=null?State.hitRate+'%':'—');
-
-  h+='<div class="p-h">SCORES</div>';
-  h+=pr('DECISION CONFIDENCE', dc+'%');
-  h+=pr('RISK ASSESSMENT', risk.label+' ('+risk.r+'%)');
-  h+=pr('BEHAVIORAL SCORE', beh.grade+' · '+beh.s);
-  if(State.wheelResult) h+=pr('WHEEL OF FATE', State.wheelResult);
-
-  // אזור הקלפים הוסר מדף ההדפסה לפי בקשת המשתמשת (בלי תמונות ובלי שמות קלפים)
+  // קטעי STRESS & COGNITION TESTS ו-SCORES הוסרו מדף ההדפסה לפי בקשת המשתמשת.
+  // אזור הקלפים הוסר גם הוא (בלי תמונות ובלי שמות קלפים).
 
   h+='<div class="p-h">THE TRADE</div>';
   h+=pr('SIGNAL', S+' · '+TRADE.action);
