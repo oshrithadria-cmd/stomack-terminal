@@ -498,7 +498,7 @@
     width: 440px; min-height: 660px; padding: 16px 20px; box-sizing: border-box; color: #000 !important; background: #fff !important;
     font-family: 'Share Tech Mono', 'Courier New', monospace; font-size: 20px; line-height: 1.7; }
   #print-sheet.__cap * { color: #000 !important; text-shadow: none !important; box-shadow: none !important; }
-  #print-sheet.__cap .p-title { text-align: center; font-weight: 700; font-size: 31px; letter-spacing: 1px; }
+  #print-sheet.__cap .p-title { text-align: center; font-weight: 700; font-size: 30px; letter-spacing: 1px; }
   #print-sheet.__cap .p-sub { text-align: center; font-size: 16px; margin-bottom: 12px; }
   #print-sheet.__cap .p-rule { border-top: 1px dashed #000; margin: 12px 0; }
   #print-sheet.__cap .p-h { font-weight: 700; font-size: 22px; letter-spacing: 1px; margin: 16px 0 8px; border-bottom: 2px solid #000; }
@@ -506,12 +506,15 @@
   #print-sheet.__cap .pr .pk { text-transform: uppercase; }
   #print-sheet.__cap .pr .pv { text-align: right; font-weight: 700; }
   #print-sheet.__cap .p-note { margin-top: 12px; font-size: 18px; font-style: italic; }
-  #print-sheet.__cap .p-big { text-align: center; font-weight: 700; font-size: 38px; margin: 14px 0; }
   #print-sheet.__cap .p-foot { text-align: center; font-size: 16px; margin-top: auto; padding-top: 14px; }
   #print-sheet.__cap img { filter: grayscale(1) contrast(1.05); }
-  #print-sheet.__cap .p-id { display: flex; gap: 14px; align-items: flex-start; }
+  /* דף מינימלי: תמונה גדולה וממורכזת + כמה זכו */
+  #print-sheet.__cap .p-portrait-only { display: flex; justify-content: center; margin: 26px 0 18px; }
   #print-sheet.__cap .p-portrait-wrap { flex: 0 0 auto; }
-  #print-sheet.__cap .p-portrait { width: 200px; height: auto; border: 1px solid #000; display: block; }
+  #print-sheet.__cap .p-portrait { width: 300px; height: auto; border: 2px solid #000; display: block; }
+  #print-sheet.__cap .p-name { text-align: center; font-weight: 700; font-size: 30px; letter-spacing: 1px; margin: 6px 0 2px; text-transform: uppercase; }
+  #print-sheet.__cap .p-win-label { text-align: center; font-size: 22px; letter-spacing: 3px; margin-top: 18px; }
+  #print-sheet.__cap .p-big { text-align: center; font-weight: 700; font-size: 66px; margin: 4px 0 0; }
   #print-sheet.__cap .p-portrait.ready-bw { filter: none; }
   #print-sheet.__cap .p-idkv { flex: 1 1 auto; }
   #print-sheet.__cap .p-cards { display: flex; gap: 12px; justify-content: space-between; }
@@ -3389,47 +3392,13 @@ function buildPrintSheet(ctx){
   const plStr=(TRADE.pl>=0?'+':'')+fmtMoney(TRADE.pl);
   const outcome = TRADE.action==='HOLD' ? 'STAYED OUT' : (TRADE.outcome==='win'?'PROFIT':(TRADE.outcome==='loss'?'LOSS':'FLAT'));
   let h='';
+  // דף מינימלי לפי בקשת המשתמשת: רק תמונה + כמה זכו
   h+='<div class="p-title">STO(MA)CK TERMINAL</div>';
-  h+='<div class="p-sub">SESSION DOSSIER · '+escHtml(caseId)+' · '+escHtml(dt)+'</div>';
-  h+='<div class="p-rule"></div>';
-
-  h+='<div class="p-h">IDENTITY</div>';
-  h+='<div class="p-id"><div class="p-portrait-wrap" id="p-portrait-wrap"></div><div class="p-idkv">';
-  h+=pr('NAME', State.name||'ANONYMOUS');
-  h+=pr('AGE', State.age||'—');
-  h+=pr('EXPERIENCE', lbl('experience', State.experience));
-  h+=pr('THIS WEEK', lbl('week', State.week));
-  h+='</div></div>';
-
-  h+='<div class="p-h">WHAT YOU TOLD ME</div>';
-  h+=pr('SUBJECT', S);
-  h+=pr('GUT IMPULSE', lbl('act', State.act));
-  h+=pr('HOPES FOR', lbl('hope', State.hope));
-  h+=pr('AFRAID OF', lbl('fear', State.fear));
-  h+=pr('SELF-CONFIDENCE', (State.confidence??50)+'%');
-
-  h+='<div class="p-h">BIOMETRIC READOUT</div>';
-  h+=pr('SELF-BELIEF', a.cs+'%');
-  h+=pr('STILLNESS', a.still+'%');
-  h+=pr('EXPRESSION', (State.expression||'GUARDED').toUpperCase());
-  h+=pr('AURA', State.auraColor?State.auraColor.n.toUpperCase():'—');
-  h+=pr('EYE CONTACT', State.eyeContact!=null?State.eyeContact+'%':'—');
-  h+=pr('BLINK LATENCY', State.blinkLatency!=null?State.blinkLatency+' ms':'—');
-  h+=pr('BLINK COUNT', State.blinks??0);
-  h+=pr('GAZE', State.gazeAway?'DRIFTING':'HELD');
-  h+='<div class="p-note">What I think: '+escHtml(bv.en)+'</div>';
-
-  // קטעי STRESS & COGNITION TESTS ו-SCORES הוסרו מדף ההדפסה לפי בקשת המשתמשת.
-  // אזור הקלפים הוסר גם הוא (בלי תמונות ובלי שמות קלפים).
-
-  h+='<div class="p-h">THE TRADE</div>';
-  h+=pr('SIGNAL', S+' · '+TRADE.action);
-  h+=pr('SIZE', nice(TRADE.size));
-  h+=pr('ENTRY → CLOSE', '$'+TRADE.entry.toFixed(2)+' → $'+TRADE.close.toFixed(2)+' ('+(TRADE.pct>=0?'+':'')+TRADE.pct.toFixed(2)+'%)');
-  h+='<div class="p-big">'+escHtml(plStr)+' · '+escHtml(outcome)+'</div>';
-
-  h+='<div class="p-rule"></div>';
-  h+='<div class="p-foot">The room read you — not the future.<br>STO(MA)CK TERMINAL</div>';
+  h+='<div class="p-portrait-only"><div class="p-portrait-wrap" id="p-portrait-wrap"></div></div>';
+  if(State.name) h+='<div class="p-name">'+escHtml(State.name)+'</div>';
+  h+='<div class="p-win-label">'+escHtml(outcome)+'</div>';
+  h+='<div class="p-big">'+escHtml(plStr)+'</div>';
+  h+='<div class="p-foot">STO(MA)CK TERMINAL</div>';
   document.getElementById('print-sheet').innerHTML=h;
 }
 
