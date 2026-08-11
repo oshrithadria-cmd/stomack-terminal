@@ -3511,6 +3511,30 @@ function ensureHtml2Canvas(timeoutMs){
   });
 }
 
+/* מכווץ קנבס ל-JPEG שנכנס מתחת לגבול גודל ההודעה של הברוקר הציבורי (~268KB).
+   מקטין קודם איכות, ואם צריך גם מקטין רזולוציה — עד שה-dataURL קטן מספיק. */
+function canvasToJpegUnder(canvas, maxLen){
+  function scaled(src, factor){
+    const c=document.createElement('canvas');
+    c.width=Math.max(1, Math.round(src.width*factor));
+    c.height=Math.max(1, Math.round(src.height*factor));
+    const ctx=c.getContext('2d');
+    ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height);
+    ctx.drawImage(src, 0, 0, c.width, c.height);
+    return c;
+  }
+  const qualities=[0.72,0.62,0.52,0.44,0.36,0.30];
+  let work=canvas;
+  for(let pass=0; pass<5; pass++){
+    for(const q of qualities){
+      const url=work.toDataURL('image/jpeg', q);
+      if(url.length<=maxLen) return url;
+    }
+    work=scaled(work, 0.82);   // עדיין גדול מדי — מקטינים רזולוציה וממשיכים
+  }
+  return work.toDataURL('image/jpeg', 0.30);   // מוצא אחרון
+}
+
 /* מצלם את גיליון הסיכום לתמונה ושולח למחשב-הגשר דרך MQTT → המחשב מדפיס במדפסת. */
 async function sendDossierToPrinter(){
   try{
@@ -3526,8 +3550,10 @@ async function sendDossierToPrinter(){
     await new Promise(r=>setTimeout(r,80));     // לתת לפריסה ולתמונות להתייצב
     const canvas=await html2canvas(el, { backgroundColor:'#fff', scale:2, useCORS:true, logging:false });
     el.classList.remove('__cap');
-    const dataURL=canvas.toDataURL('image/png');
+    // הברוקר הציבורי מפיל הודעות מעל ~268KB — לכן שולחים JPEG מכווץ מתחת לגבול בטוח
+    const dataURL=canvasToJpegUnder(canvas, 235000);
     const jobId='job-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
+    console.log('[print] שולח דף סיכום, גודל=' + Math.round(dataURL.length/1024) + 'KB');
     rtPublish({ t:'print', id:jobId, name:(State.name||''), img:dataURL, ts:Date.now() });
   }catch(e){
     try{ document.getElementById('print-sheet').classList.remove('__cap'); }catch(_){}

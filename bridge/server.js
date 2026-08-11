@@ -136,11 +136,13 @@ const server = http.createServer(async (req, res)=>{
   return sendJson(res, 404, { ok:false, error: 'not found' });
 });
 
-fan.connect().then(()=>{
-  server.listen(PORT, HOST, ()=>{
-    console.log(`[bridge] listening on http://${HOST}:${PORT}  (MOCK=${fan.CONFIG.MOCK})`);
-    console.log('[bridge] endpoints: GET /health, GET /videos, POST /play {name|video}, POST /power {on}, POST /command {ascii}, POST /stop');
-  });
-  // מאזין לזמן-אמת: פקודות מהטלפון (דרך הברקוד) -> מאוורר
-  holoBus.start(fan, resolveVideo);
+// המאזין להדפסות + זמן-אמת חייב לעלות מיד, בלי תלות במאוורר.
+// (בעבר הוא חיכה ל-fan.connect(), וכשהמאוורר לא היה נגיש — ההדפסות לא התקבלו.)
+server.listen(PORT, HOST, ()=>{
+  console.log(`[bridge] listening on http://${HOST}:${PORT}  (MOCK=${fan.CONFIG.MOCK})`);
+  console.log('[bridge] endpoints: GET /health, GET /videos, POST /play {name|video}, POST /power {on}, POST /command {ascii}, POST /stop');
 });
+// מאזין לזמן-אמת: הדפסת דף הסיכום + פקודות מהטלפון (דרך הברקוד) — עולה מיד
+holoBus.start(fan, resolveVideo);
+// חיבור למאוורר ברקע (best-effort) — לא חוסם ולא משפיע על ההדפסה
+fan.connect().catch((e)=>{ console.error('[bridge] fan connect failed (ignored):', e && e.message); });
